@@ -1,6 +1,6 @@
-# YTM
+# YouTube Music
 
-A native macOS desktop app for YouTube Music. YTM wraps the real
+A native macOS desktop app for YouTube Music. The app wraps the real
 [music.youtube.com](https://music.youtube.com) in AppKit and WebKit, so the
 interface, recommendations, library, and playback are exactly the web app —
 with native window behavior, media keys, and macOS integrations around it.
@@ -8,7 +8,7 @@ with native window behavior, media keys, and macOS integrations around it.
 > Unofficial client. Not affiliated with, endorsed by, or sponsored by Google
 > LLC. YouTube Music is a trademark of Google LLC.
 
-![YTM showing the YouTube Music home page](docs/screenshots/home.png)
+![YouTube Music showing the home page](docs/screenshots/home.png)
 
 ## Features
 
@@ -62,7 +62,7 @@ There are no third-party dependencies and no Xcode project to open.
 git clone <this-repo> ytm-desktop
 cd ytm-desktop
 ./Tools/build.sh
-open dist/YTM.app
+open "dist/YouTube Music.app"
 ```
 
 To build and copy the app into `/Applications` in one step:
@@ -72,18 +72,18 @@ To build and copy the app into `/Applications` in one step:
 ```
 
 The build compiles the Objective-C sources with `clang`, assembles
-`dist/YTM.app`, copies the JavaScript resources, and ad-hoc signs the bundle.
+`dist/YouTube Music.app`, copies the JavaScript resources, and ad-hoc signs the bundle.
 The app is built locally, so it is not notarized.
 
 ## First run
 
-1. Open YTM.
+1. Open YouTube Music.
 2. Click **Sign in** and complete Google's sign-in flow in the app window.
 3. Play something. Click **Mini Player** in the title bar (or use
    **View → Show Mini Player**) to open the floating player.
 
 Google sign-in is shown inside the app using a Safari-compatible user agent.
-Credentials are entered directly on Google's pages; YTM never reads or stores
+Credentials are entered directly on Google's pages; the app never reads or stores
 them. Authentication redirects never leave the app for a browser.
 
 ## How it works

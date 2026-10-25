@@ -288,7 +288,7 @@
     }];
 
     [NSApp orderFrontStandardAboutPanelWithOptions:@{
-        NSAboutPanelOptionApplicationName: @"YTM",
+        NSAboutPanelOptionApplicationName: @"YouTube Music",
         NSAboutPanelOptionApplicationVersion: version,
         NSAboutPanelOptionVersion: build,
         NSAboutPanelOptionCredits: credits
@@ -384,10 +384,10 @@
     // Application
     NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
     [mainMenu addItem:appMenuItem];
-    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"YTM"];
+    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"YouTube Music"];
     appMenuItem.submenu = appMenu;
 
-    NSMenuItem *about = [appMenu addItemWithTitle:@"About YTM" action:@selector(showAbout:) keyEquivalent:@""];
+    NSMenuItem *about = [appMenu addItemWithTitle:@"About YouTube Music" action:@selector(showAbout:) keyEquivalent:@""];
     about.target = self;
     [appMenu addItem:[NSMenuItem separatorItem]];
 
@@ -402,13 +402,13 @@
     NSApp.servicesMenu = servicesMenu;
     [appMenu addItem:[NSMenuItem separatorItem]];
 
-    [appMenu addItemWithTitle:@"Hide YTM" action:@selector(hide:) keyEquivalent:@"h"];
+    [appMenu addItemWithTitle:@"Hide YouTube Music" action:@selector(hide:) keyEquivalent:@"h"];
     NSMenuItem *hideOthers = [appMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"];
     hideOthers.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagOption;
     [appMenu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""];
     [appMenu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *quit = [appMenu addItemWithTitle:@"Quit YTM" action:@selector(terminate:) keyEquivalent:@"q"];
+    NSMenuItem *quit = [appMenu addItemWithTitle:@"Quit YouTube Music" action:@selector(terminate:) keyEquivalent:@"q"];
     quit.keyEquivalentModifierMask = NSEventModifierFlagCommand;
 
     // File

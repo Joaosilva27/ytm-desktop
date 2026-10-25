@@ -233,7 +233,7 @@
     if (self.sleepActivity) { return; }
     self.sleepActivity = [NSProcessInfo.processInfo beginActivityWithOptions:(NSActivityUserInitiated |
                                                                               NSActivityIdleSystemSleepDisabled)
-                                                                      reason:@"Playing music with YTM"];
+                                                                      reason:@"Playing music with YouTube Music"];
 }
 
 - (void)endSleepActivity {

@@ -151,7 +151,7 @@
     [pageRow.widthAnchor constraintEqualToAnchor:stack.widthAnchor].active = YES;
     [self.startPageField.widthAnchor constraintEqualToConstant:340].active = YES;
 
-    NSTextField *hint = [NSTextField labelWithString:@"Used when YTM launches. Leave empty to use music.youtube.com."];
+    NSTextField *hint = [NSTextField labelWithString:@"Used when YouTube Music launches. Leave empty to use music.youtube.com."];
     hint.font = [NSFont systemFontOfSize:11];
     hint.textColor = NSColor.secondaryLabelColor;
     hint.translatesAutoresizingMaskIntoConstraints = NO;
@@ -174,7 +174,7 @@
 
     NSString *version = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.0";
     NSTextField *versionLabel = [NSTextField labelWithString:
-        [NSString stringWithFormat:@"YTM %@ · Unofficial client", version]];
+        [NSString stringWithFormat:@"YouTube Music %@ · Unofficial client", version]];
     versionLabel.font = [NSFont systemFontOfSize:11];
     versionLabel.textColor = NSColor.tertiaryLabelColor;
     versionLabel.translatesAutoresizingMaskIntoConstraints = NO;

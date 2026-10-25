@@ -24,7 +24,7 @@ static NSString * const LoginItemLabel = @"com.joaosilva.ytmdesktop.login";
 
 + (BOOL)install:(NSError **)error {
     if (![NSBundle.mainBundle.bundleURL.pathExtension isEqualToString:@"app"]) {
-        [self setError:error message:@"Launch at login only works when YTM is running from an app bundle."];
+        [self setError:error message:@"Launch at login only works when YouTube Music is running from an app bundle."];
         return NO;
     }
 

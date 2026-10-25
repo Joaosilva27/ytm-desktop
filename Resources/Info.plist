@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>YTM</string>
+    <string>YouTube Music</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>YTM</string>
+    <string>YouTube Music</string>
     <key>CFBundleDisplayName</key>
     <string>YouTube Music</string>
     <key>CFBundlePackageType</key>
@@ -33,7 +33,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Unofficial YouTube Music client. Not affiliated with Google LLC.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>YTM uses the microphone only if you use YouTube Music's "Search for a song" feature.</string>
+    <string>YouTube Music uses the microphone only if you use YouTube Music's "Search for a song" feature.</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
     <key>LSMultipleInstancesProhibited</key>

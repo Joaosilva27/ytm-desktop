@@ -4,13 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT/build"
 DIST_DIR="$ROOT/dist"
-APP="$DIST_DIR/YTM.app"
+APP="$DIST_DIR/YouTube Music.app"
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 CC="${CC:-clang}"
 
-echo "Building YTM…"
+echo "Building YouTube Music…"
 
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
@@ -30,7 +30,7 @@ xcrun "$CC" \
   -framework MediaPlayer \
   -framework QuartzCore \
   "$ROOT"/Sources/*.m \
-  -o "$MACOS/YTM"
+  -o "$MACOS/YouTube Music"
 
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT/Resources/PlayerBridge.js" "$RESOURCES/PlayerBridge.js"
@@ -51,8 +51,9 @@ echo "Built $APP"
 if [[ "${1:-}" == "--open" ]]; then
   open "$APP"
 elif [[ "${1:-}" == "--install" ]]; then
-  rm -rf "/Applications/YTM.app"
-  cp -R "$APP" "/Applications/YTM.app"
-  echo "Installed /Applications/YTM.app"
-  open "/Applications/YTM.app"
+  # Remove the old bundle name so two copies of the same app cannot coexist.
+  rm -rf "/Applications/YTM.app" "/Applications/YouTube Music.app"
+  cp -R "$APP" "/Applications/YouTube Music.app"
+  echo "Installed /Applications/YouTube Music.app"
+  open "/Applications/YouTube Music.app"
 fi
