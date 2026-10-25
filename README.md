@@ -32,6 +32,12 @@ with native window behavior, media keys, and macOS integrations around it.
   requests and hides promotional surfaces. A page script also strips ad
   metadata and fast-forwards in-player ads. Control it in
   **Settings → Privacy**.
+- **Audio-only by default** — playback uses YouTube's audio-only stream for the
+  current track, so no music video is displayed and the player shows the track
+  artwork instead. When a track has a video, click the
+  **Video** button in the title bar, use **View → Show Video**, or press ⌥⌘V
+  to switch back to the video stream. The next track returns to audio-only
+  automatically.
 - **Dock menu** — playback controls plus quick access to the window and mini
   player, without bringing the window forward.
 - **Native settings** — start page, menu bar player, keep-playing-on-close,
@@ -100,6 +106,10 @@ them. Authentication redirects never leave the app for a browser.
   hosts and YouTube ad endpoints and hides promotional UI.
 - `Resources/AdBlocker.js` prunes ad fields from player responses and
   fast-forwards any in-player ads that still appear.
+- `Resources/AudioOnly.js` hooks the music app's player API to request
+  YouTube's `audio_only=1` stream for every queue load, swaps in the track
+  artwork while that stream plays, and exposes the per-track video toggle to
+  the native titlebar.
 - `Sources/LoginItemManager.m` manages a LaunchAgent in
   `~/Library/LaunchAgents` for launch at login.
 
@@ -116,7 +126,7 @@ Build and run the snapshot harness used during development:
 
 The app also accepts hidden environment variables for local testing, including
 `YTM_START_URL`,
-`YTM_ACTION=mini|minibutton|settings|fullscreen|adblocktoggle`, `YTM_SNAPSHOT`,
+`YTM_ACTION=mini|minibutton|settings|fullscreen|adblocktoggle|video`, `YTM_SNAPSHOT`,
 `YTM_SNAPSHOT_MODE=window`, and `YTM_EPHEMERAL=1` (uses a non-persistent
 WebKit profile). These are not user-facing settings.
 
@@ -140,6 +150,9 @@ Re-generate the app icon after editing `Tools/IconGen.m`:
 - Ad blocking is best-effort: YouTube changes its ad delivery and player
   internals regularly. If playback misbehaves, turn off **Block ads and
   sponsored content** in Settings.
+- Audio-only mode follows YouTube's own player availability. On the rare
+  tracks where YouTube blocks audio-only playback, the player may keep using
+  the video stream; the **Video** toggle remains available.
 
 ## License
 

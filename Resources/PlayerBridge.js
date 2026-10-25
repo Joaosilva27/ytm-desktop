@@ -162,6 +162,9 @@
     var bg = background();
     var id = videoID();
     var hasMedia = !!v && !!v.currentSrc && isFinite(v.duration) && v.duration > 0;
+    var audioOnly = window.__ytmAudioOnly;
+    var hasVideo = audioOnly ? audioOnly.hasVideo() : false;
+    var videoVisible = audioOnly ? audioOnly.isVideoVisible() : false;
 
     return {
       hasTrack: !!title && (!!id || hasMedia),
@@ -178,6 +181,8 @@
       canPrevious: enabled(previousButton()),
       canLike: !!parts.button,
       liked: isLiked(),
+      hasVideo: !!hasVideo,
+      videoVisible: !!videoVisible,
       url: location.href,
       bg: bg,
       isDark: isDarkColor(bg)
@@ -294,6 +299,12 @@
         return seek(value);
       case 'like':
         return setLike(value);
+      case 'toggleVideo':
+        if (window.__ytmAudioOnly) {
+          window.__ytmAudioOnly.toggle();
+          return true;
+        }
+        return false;
       case 'focusSearch':
         return focusSearch();
       case 'home':
@@ -306,7 +317,8 @@
   window.__ytm = {
     version: 1,
     getState: getState,
-    command: command
+    command: command,
+    refreshState: postState
   };
 
   try {

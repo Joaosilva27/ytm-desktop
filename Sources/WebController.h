@@ -51,6 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)seekTo:(NSTimeInterval)time;
 - (void)setLiked:(BOOL)liked;
 - (void)focusSearch;
+- (void)toggleVideo;
 
 /// Reconfigures the content-rule list and injected ad script, then reloads.
 - (void)setAdBlockingEnabled:(BOOL)enabled;

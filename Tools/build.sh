@@ -34,6 +34,7 @@ xcrun "$CC" \
 
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT/Resources/PlayerBridge.js" "$RESOURCES/PlayerBridge.js"
+cp "$ROOT/Resources/AudioOnly.js" "$RESOURCES/AudioOnly.js"
 cp "$ROOT/Resources/AdBlocker.js" "$RESOURCES/AdBlocker.js"
 cp "$ROOT/Resources/AdBlockRules.json" "$RESOURCES/AdBlockRules.json"
 

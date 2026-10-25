@@ -13,6 +13,7 @@ static NSString * const YTMSafariUserAgent =
 @property (nonatomic, strong, readwrite) WKWebView *webView;
 @property (nonatomic, strong) WKUserContentController *contentController;
 @property (nonatomic, strong, nullable) WKUserScript *playerBridgeScript;
+@property (nonatomic, strong, nullable) WKUserScript *audioOnlyScript;
 @property (nonatomic, strong) AdBlocker *adBlocker;
 @property (nonatomic, strong, nullable) PlaybackState *state;
 @property (nonatomic, assign) BOOL loading;
@@ -74,6 +75,15 @@ static NSString * const YTMSafariUserAgent =
                                                        forMainFrameOnly:YES];
     } else {
         NSLog(@"[YTM] PlayerBridge.js is missing from the app bundle; playback controls will be unavailable.");
+    }
+
+    NSString *audioOnlyScript = [self resourceNamed:@"AudioOnly" extension:@"js"];
+    if (audioOnlyScript.length > 0) {
+        self.audioOnlyScript = [[WKUserScript alloc] initWithSource:audioOnlyScript
+                                                       injectionTime:WKUserScriptInjectionTimeAtDocumentEnd
+                                                    forMainFrameOnly:YES];
+    } else {
+        NSLog(@"[YTM] AudioOnly.js is missing from the app bundle; audio-only playback will be unavailable.");
     }
 
     self.adBlocker = [[AdBlocker alloc] initWithUserContentController:contentController
@@ -182,6 +192,9 @@ static NSString * const YTMSafariUserAgent =
     if (self.playerBridgeScript) {
         [self.contentController addUserScript:self.playerBridgeScript];
     }
+    if (self.audioOnlyScript) {
+        [self.contentController addUserScript:self.audioOnlyScript];
+    }
     if (self.adBlocker.isEnabled) {
         WKUserScript *script = self.adBlocker.userScript;
         if (script) {
@@ -255,6 +268,7 @@ static NSString * const YTMSafariUserAgent =
 - (void)seekTo:(NSTimeInterval)time { [self sendCommand:@"seek" value:@(MAX(0, time))]; }
 - (void)setLiked:(BOOL)liked { [self sendCommand:@"like" value:@(liked)]; }
 - (void)focusSearch { [self sendCommand:@"focusSearch" value:nil]; }
+- (void)toggleVideo { [self sendCommand:@"toggleVideo" value:nil]; }
 
 - (void)performCommand:(NSString *)command value:(nullable id)value {
     if ([command isEqualToString:@"seek"]) {

@@ -20,6 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL canPrevious;
 @property (nonatomic, assign) BOOL canLike;
 @property (nonatomic, assign) BOOL isLiked;
+@property (nonatomic, assign) BOOL hasVideo;
+@property (nonatomic, assign) BOOL videoVisible;
 @property (nonatomic, strong, nullable) NSURL *pageURL;
 @property (nonatomic, copy) NSString *backgroundColorHex;
 @property (nonatomic, assign) BOOL isDark;

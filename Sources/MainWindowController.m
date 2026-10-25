@@ -26,11 +26,16 @@ static const CGFloat YTMChromeInset = 28.0;
 @property (nonatomic, strong) LoadingOverlayView *overlayView;
 @property (nonatomic, strong) YTMTitlebarStripView *titlebarStrip;
 @property (nonatomic, strong) NSButton *miniPlayerButton;
+@property (nonatomic, strong) NSButton *videoButton;
+@property (nonatomic, assign) BOOL videoButtonHasVideo;
+@property (nonatomic, assign) BOOL videoButtonShowsVideo;
 @property (nonatomic, strong) NSLayoutConstraint *webTopConstraint;
 @property (nonatomic, assign) CGFloat chromeInset;
 
 - (void)miniPlayerPressed:(id)sender;
+- (void)videoPressed:(id)sender;
 - (void)updateMiniPlayerButtonImage;
+- (void)updateVideoButtonImageForVisible:(BOOL)videoVisible;
 
 @end
 
@@ -122,6 +127,22 @@ static const CGFloat YTMChromeInset = 28.0;
         [_miniPlayerButton.trailingAnchor constraintEqualToAnchor:_titlebarStrip.trailingAnchor constant:-12]
     ]];
 
+    _videoButton = [NSButton buttonWithTitle:@"Video"
+                                     target:self
+                                     action:@selector(videoPressed:)];
+    _videoButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _videoButton.bezelStyle = NSBezelStyleRounded;
+    _videoButton.controlSize = NSControlSizeSmall;
+    _videoButton.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
+    _videoButton.toolTip = @"Show the music video";
+    _videoButton.hidden = YES;
+    [self updateVideoButtonImageForVisible:NO];
+    [_titlebarStrip addSubview:_videoButton];
+    [NSLayoutConstraint activateConstraints:@[
+        [_videoButton.centerYAnchor constraintEqualToAnchor:_titlebarStrip.centerYAnchor],
+        [_videoButton.trailingAnchor constraintEqualToAnchor:_miniPlayerButton.leadingAnchor constant:-8]
+    ]];
+
     NSString *autosaveKey = [@"NSWindow Frame " stringByAppendingString:@"YTMMainWindow"];
     BOOL hasSavedFrame = [[NSUserDefaults standardUserDefaults] objectForKey:autosaveKey] != nil;
     [window setFrameAutosaveName:@"YTMMainWindow"];
@@ -183,9 +204,19 @@ static const CGFloat YTMChromeInset = 28.0;
     }
 }
 
+- (void)videoPressed:(id)sender {
+    if (self.videoToggleHandler) {
+        self.videoToggleHandler();
+    }
+}
+
 /// Test hook: exercises the same target/action path as a real click.
 - (void)performMiniPlayerButtonClick {
     [self.miniPlayerButton performClick:nil];
+}
+
+- (void)performVideoButtonClick {
+    [self.videoButton performClick:nil];
 }
 
 - (void)updateMiniPlayerButtonVisible:(BOOL)visible {
@@ -193,6 +224,37 @@ static const CGFloat YTMChromeInset = 28.0;
     self.miniPlayerButton.toolTip = visible ? @"Hide the floating mini player"
                                             : @"Show the floating mini player";
     [self updateMiniPlayerButtonImage];
+}
+
+- (void)updateVideoButtonWithHasVideo:(BOOL)hasVideo videoVisible:(BOOL)videoVisible {
+    // State ticks arrive every second; only rebuild the button when its meaning changes.
+    if (hasVideo == self.videoButtonHasVideo && videoVisible == self.videoButtonShowsVideo) {
+        return;
+    }
+    self.videoButtonHasVideo = hasVideo;
+    self.videoButtonShowsVideo = videoVisible;
+
+    if (!hasVideo) {
+        self.videoButton.hidden = YES;
+        return;
+    }
+
+    self.videoButton.hidden = NO;
+    self.videoButton.title = videoVisible ? @"Audio" : @"Video";
+    self.videoButton.toolTip = videoVisible ? @"Hide the music video and return to audio only"
+                                            : @"Show the music video";
+    [self updateVideoButtonImageForVisible:videoVisible];
+}
+
+- (void)updateVideoButtonImageForVisible:(BOOL)videoVisible {
+    NSString *symbol = videoVisible ? @"music.note" : @"play.rectangle";
+    NSImage *image = [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:nil];
+    NSImageSymbolConfiguration *configuration =
+        [NSImageSymbolConfiguration configurationWithPointSize:11 weight:NSFontWeightMedium];
+    image = [image imageWithSymbolConfiguration:configuration];
+    image.template = YES;
+    self.videoButton.image = image;
+    self.videoButton.imagePosition = image ? NSImageLeading : NSNoImage;
 }
 
 - (void)updateMiniPlayerButtonImage {

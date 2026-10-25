@@ -34,6 +34,8 @@
     _canPrevious = [self boolValue:message[@"canPrevious"]];
     _canLike = [self boolValue:message[@"canLike"]];
     _isLiked = [self boolValue:message[@"liked"]];
+    _hasVideo = [self boolValue:message[@"hasVideo"]];
+    _videoVisible = [self boolValue:message[@"videoVisible"]];
 
     NSString *rawURL = [self stringValue:message[@"url"]];
     if (rawURL.length > 0) {
@@ -117,6 +119,8 @@
         && self.canPrevious == other.canPrevious
         && self.canLike == other.canLike
         && self.isLiked == other.isLiked
+        && self.hasVideo == other.hasVideo
+        && self.videoVisible == other.videoVisible
         && [self.backgroundColorHex isEqualToString:other.backgroundColorHex]
         && self.isDark == other.isDark;
 }

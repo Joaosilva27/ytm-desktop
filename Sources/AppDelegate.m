@@ -47,6 +47,9 @@
     self.mainWindowController.miniPlayerToggleHandler = ^{
         [weakSelf toggleMiniPlayer:nil];
     };
+    self.mainWindowController.videoToggleHandler = ^{
+        [weakSelf.webController toggleVideo];
+    };
     self.nowPlayingService.commandHandler = ^(NSString *command, id value) {
         [weakSelf.webController performCommand:command value:value];
     };
@@ -175,6 +178,8 @@
     [self.nowPlayingService updateWithState:state];
     [self.statusItemController updateWithState:state];
     [self.miniPlayerController updateWithState:state];
+    [self.mainWindowController updateVideoButtonWithHasVideo:(state.hasTrack && state.hasVideo)
+                                               videoVisible:state.videoVisible];
     if (state.hasTrack) {
         self.mainWindowController.window.title = state.displayTitle;
     } else {
@@ -203,6 +208,10 @@
 - (void)toggleLike:(id)sender {
     PlaybackState *state = self.webController.state;
     [self.webController setLiked:!state.isLiked];
+}
+
+- (void)toggleVideo:(id)sender {
+    [self.webController toggleVideo];
 }
 
 - (void)focusSearch:(id)sender {
@@ -322,6 +331,11 @@
     if (action == @selector(toggleMiniPlayer:)) {
         menuItem.title = self.miniPlayerController.isVisible ? @"Hide Mini Player" : @"Show Mini Player";
         return YES;
+    }
+    if (action == @selector(toggleVideo:)) {
+        menuItem.title = state.videoVisible ? @"Show Audio Only" : @"Show Video";
+        menuItem.state = state.videoVisible ? NSControlStateValueOn : NSControlStateValueOff;
+        return hasTrack && state.hasVideo;
     }
     return YES;
 }
@@ -484,6 +498,12 @@
     mini.target = self;
     mini.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
 
+    NSMenuItem *video = [viewMenu addItemWithTitle:@"Show Video"
+                                            action:@selector(toggleVideo:)
+                                     keyEquivalent:@"v"];
+    video.target = self;
+    video.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagOption;
+
     [viewMenu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem *fullScreen = [viewMenu addItemWithTitle:@"Enter Full Screen"
@@ -538,6 +558,10 @@
             } else if ([action isEqualToString:@"adblocktoggle"]) {
                 Preferences *preferences = [Preferences sharedPreferences];
                 preferences.blockAds = !preferences.blockAds;
+            } else if ([action isEqualToString:@"video"]) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [self.mainWindowController performVideoButtonClick];
+                });
             } else if ([action isEqualToString:@"settings"]) {
                 [self showSettings:nil];
             } else if ([action isEqualToString:@"fullscreen"]) {
