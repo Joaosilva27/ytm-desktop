@@ -91,13 +91,14 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           set +e
-          ./Tools/make-dmg.sh > build/dmg.log 2>&1
+          log="$RUNNER_TEMP/dmg.log"
+          ./Tools/make-dmg.sh > "$log" 2>&1
           status=$?
-          cat build/dmg.log
+          cat "$log"
           if [[ $status -ne 0 ]]; then
             # Turn the tail of the log into annotations so the failure is
             # readable from the Actions summary.
-            tail -n 20 build/dmg.log | sed '/^$/d' | while IFS= read -r line; do
+            tail -n 20 "$log" | sed '/^$/d' | while IFS= read -r line; do
               echo "::error::$line"
             done
             exit "$status"
