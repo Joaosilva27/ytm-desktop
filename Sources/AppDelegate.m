@@ -36,7 +36,6 @@
 
     self.webController = [[WebController alloc] init];
     self.webController.delegate = self;
-    self.webController.chromeInset = 28;
 
     self.mainWindowController = [[MainWindowController alloc] initWithWebController:self.webController];
     [self.mainWindowController showLoadingWithMessage:@"Loading your library…"];
@@ -45,6 +44,9 @@
 
     self.nowPlayingService = [[NowPlayingService alloc] init];
     __weak typeof(self) weakSelf = self;
+    self.mainWindowController.miniPlayerToggleHandler = ^{
+        [weakSelf toggleMiniPlayer:nil];
+    };
     self.nowPlayingService.commandHandler = ^(NSString *command, id value) {
         [weakSelf.webController performCommand:command value:value];
     };
@@ -70,6 +72,9 @@
     };
     self.miniPlayerController.openWindowHandler = ^{
         [weakSelf.mainWindowController present];
+    };
+    self.miniPlayerController.hideHandler = ^{
+        [weakSelf.mainWindowController updateMiniPlayerButtonVisible:NO];
     };
 
     self.settingsWindowController = [[SettingsWindowController alloc] init];
@@ -154,6 +159,11 @@
     }];
 }
 
+- (void)webControllerDidCrash:(WebController *)controller {
+    self.showingError = NO;
+    [self.mainWindowController showLoadingWithMessage:@"Reloading YouTube Music…"];
+}
+
 - (void)webController:(WebController *)controller didUpdateState:(PlaybackState *)state {
     if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
         NSLog(@"[YTM] state title=%@ artist=%@ playing=%d pos=%.1f/%.1f canNext=%d liked=%d",
@@ -227,13 +237,16 @@
 
 - (void)showMiniPlayer:(id)sender {
     [self.miniPlayerController showWithState:self.webController.state];
+    [self.mainWindowController updateMiniPlayerButtonVisible:YES];
 }
 
 - (void)toggleMiniPlayer:(id)sender {
     if (self.miniPlayerController.isVisible) {
         [self.miniPlayerController hide];
+        [self.mainWindowController updateMiniPlayerButtonVisible:NO];
     } else {
         [self.miniPlayerController showWithState:self.webController.state];
+        [self.mainWindowController updateMiniPlayerButtonVisible:YES];
     }
 }
 
@@ -339,6 +352,10 @@
     NSMenuItem *show = [[NSMenuItem alloc] initWithTitle:@"Show YouTube Music" action:@selector(showMainWindow:) keyEquivalent:@""];
     show.target = self;
     [menu addItem:show];
+
+    NSMenuItem *mini = [[NSMenuItem alloc] initWithTitle:@"Show Mini Player" action:@selector(toggleMiniPlayer:) keyEquivalent:@""];
+    mini.target = self;
+    [menu addItem:mini];
 
     return menu;
 }
@@ -514,6 +531,8 @@
             if (!self) { return; }
             if ([action isEqualToString:@"mini"]) {
                 [self showMiniPlayer:nil];
+            } else if ([action isEqualToString:@"minibutton"]) {
+                [self.mainWindowController performMiniPlayerButtonClick];
             } else if ([action isEqualToString:@"settings"]) {
                 [self showSettings:nil];
             } else if ([action isEqualToString:@"fullscreen"]) {

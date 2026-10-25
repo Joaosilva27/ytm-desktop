@@ -160,14 +160,16 @@
     var paused = v ? v.paused : true;
     var parts = likeElements();
     var bg = background();
+    var id = videoID();
+    var hasMedia = !!v && !!v.currentSrc && isFinite(v.duration) && v.duration > 0;
 
     return {
-      hasTrack: !!title,
+      hasTrack: !!title && (!!id || hasMedia),
       title: title,
       artist: artist,
       album: album,
       artwork: artwork(),
-      videoId: videoID(),
+      videoId: id,
       isPlaying: !!v && !paused && !v.ended,
       position: position,
       duration: duration,
@@ -182,19 +184,10 @@
     };
   }
 
-  var inset = 28;
-
-  function applyInset() {
-    try {
-      document.documentElement.style.setProperty('--ytm-chrome-inset', Math.max(0, inset) + 'px');
-    } catch (e) {}
-  }
-
   var timer = null;
 
   function postState() {
     if (!document.body) { return; }
-    applyInset();
     var state = getState();
     state.type = 'state';
     send(state);
@@ -313,12 +306,7 @@
   window.__ytm = {
     version: 1,
     getState: getState,
-    command: command,
-    setChromeInset: function (px) {
-      inset = Math.max(0, Number(px) || 0);
-      applyInset();
-      schedulePost(30);
-    }
+    command: command
   };
 
   try {
@@ -334,7 +322,6 @@
 
   hookPlayerBar();
   hookVideo();
-  applyInset();
 
   setInterval(function () {
     hookPlayerBar();

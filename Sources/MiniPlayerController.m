@@ -126,6 +126,8 @@ static const CGFloat YTMMiniHeight = 132;
 @property (nonatomic, strong, nullable) NSURL *artworkURL;
 @property (nonatomic, strong, nullable) NSURL *loadingArtworkURL;
 
+- (void)ensureVisibleFrame;
+
 @end
 
 @implementation MiniPlayerController
@@ -353,7 +355,37 @@ static const CGFloat YTMMiniHeight = 132;
 
 - (void)showWithState:(PlaybackState *)state {
     [self updateWithState:state];
+    [self ensureVisibleFrame];
     [self.panel orderFrontRegardless];
+}
+
+- (void)ensureVisibleFrame {
+    NSScreen *screen = self.panel.screen ?: NSScreen.mainScreen;
+    if (!screen) { return; }
+
+    NSRect frame = self.panel.frame;
+    frame.size = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
+
+    NSRect visible = screen.visibleFrame;
+    BOOL intersectsAnyScreen = NO;
+    for (NSScreen *candidate in NSScreen.screens) {
+        if (NSIntersectsRect(NSInsetRect(candidate.visibleFrame, -8, -8), frame)) {
+            intersectsAnyScreen = YES;
+            break;
+        }
+    }
+
+    if (!intersectsAnyScreen) {
+        frame.origin.x = NSMaxX(visible) - NSWidth(frame) - 24;
+        frame.origin.y = NSMinY(visible) + 24;
+    } else {
+        frame.origin.x = MIN(MAX(frame.origin.x, NSMinX(visible) - NSWidth(frame) + 48),
+                             NSMaxX(visible) - 48);
+        frame.origin.y = MIN(MAX(frame.origin.y, NSMinY(visible) - 48),
+                             NSMaxY(visible) - 48);
+    }
+
+    [self.panel setFrame:frame display:NO];
 }
 
 - (void)hide {

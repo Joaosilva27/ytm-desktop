@@ -12,7 +12,6 @@ static NSString * const YTMSafariUserAgent =
 @property (nonatomic, strong, readwrite) WKWebView *webView;
 @property (nonatomic, strong, nullable) PlaybackState *state;
 @property (nonatomic, assign) BOOL loading;
-@property (nonatomic, assign) CGFloat desiredChromeInset;
 @property (nonatomic, assign) NSInteger consentAutomationAttempts;
 
 - (void)handleScriptMessage:(WKScriptMessage *)message;
@@ -38,8 +37,6 @@ static NSString * const YTMSafariUserAgent =
     self = [super init];
     if (!self) { return nil; }
 
-    _desiredChromeInset = 28.0;
-
     WKWebViewConfiguration *configuration = [[WKWebViewConfiguration alloc] init];
     NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
     if ([environment[@"YTM_EPHEMERAL"] boolValue]) {
@@ -61,14 +58,6 @@ static NSString * const YTMSafariUserAgent =
     YTMScriptMessageProxy *proxy = [[YTMScriptMessageProxy alloc] init];
     proxy.controller = self;
     [configuration.userContentController addScriptMessageHandler:proxy name:YTMScriptHandlerName];
-
-    NSString *offsetScript = [self resourceNamed:@"ChromeOffset" extension:@"js"];
-    if (offsetScript.length > 0) {
-        WKUserScript *script = [[WKUserScript alloc] initWithSource:offsetScript
-                                                      injectionTime:WKUserScriptInjectionTimeAtDocumentStart
-                                                   forMainFrameOnly:YES];
-        [configuration.userContentController addUserScript:script];
-    }
 
     NSString *bridgeScript = [self resourceNamed:@"PlayerBridge" extension:@"js"];
     if (bridgeScript.length > 0) {
@@ -193,34 +182,6 @@ static NSString * const YTMSafariUserAgent =
     return url;
 }
 
-#pragma mark - Chrome inset
-
-- (void)setChromeInset:(CGFloat)chromeInset {
-    CGFloat clamped = MAX(0, chromeInset);
-    if (fabs(clamped - _desiredChromeInset) < 0.5) {
-        // Still push it to the page: it may have just navigated and missed the earlier script.
-        [self applyChromeInset];
-        return;
-    }
-    _desiredChromeInset = clamped;
-    [self applyChromeInset];
-}
-
-- (CGFloat)chromeInset {
-    return _desiredChromeInset;
-}
-
-- (void)applyChromeInset {
-    // Set the variable directly as well: Google sign-in pages do not get
-    // PlayerBridge, but still use the same chrome inset.
-    NSString *inset = [NSString stringWithFormat:@"%gpx", self.desiredChromeInset];
-    NSString *script = [NSString stringWithFormat:
-        @"(function(){try{document.documentElement.style.setProperty('--ytm-chrome-inset','%@');}catch(e){}"
-         "try{if(window.__ytm&&window.__ytm.setChromeInset){window.__ytm.setChromeInset(%g);}}catch(e){}})();",
-        inset, self.desiredChromeInset];
-    [self.webView evaluateJavaScript:script completionHandler:nil];
-}
-
 #pragma mark - Commands
 
 - (void)sendCommand:(NSString *)command value:(nullable id)value {
@@ -268,7 +229,6 @@ static NSString * const YTMSafariUserAgent =
     NSDictionary *body = (NSDictionary *)message.body;
     NSString *type = body[@"type"];
     if ([type isEqualToString:@"ready"]) {
-        [self applyChromeInset];
         [self.delegate webControllerDidBecomeReady:self];
         return;
     }
@@ -334,6 +294,9 @@ static NSString * const YTMSafariUserAgent =
 
 - (void)openExternally:(NSURL *)url {
     if (!url) { return; }
+    if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
+        NSLog(@"[YTM] Opening externally: %@", url.absoluteString);
+    }
     [[NSWorkspace sharedWorkspace] openURL:url];
 }
 
@@ -360,6 +323,13 @@ static NSString * const YTMSafariUserAgent =
         return;
     }
 
+    if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
+        NSLog(@"[YTM] Navigate: %@ (target=%@, type=%ld)",
+              url.absoluteString,
+              navigationAction.targetFrame ? @"frame" : @"new-window",
+              (long)navigationAction.navigationType);
+    }
+
     if ([self isInternalURL:url]) {
         decisionHandler(WKNavigationActionPolicyAllow);
         return;
@@ -383,16 +353,14 @@ static NSString * const YTMSafariUserAgent =
 
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {
     self.loading = YES;
+    if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
+        NSLog(@"[YTM] Start: %@", webView.URL.absoluteString);
+    }
     [self.delegate webControllerDidStartLoading:self];
-}
-
-- (void)webView:(WKWebView *)webView didCommitNavigation:(WKNavigation *)navigation {
-    [self applyChromeInset];
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
     self.loading = NO;
-    [self applyChromeInset];
     if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
         NSLog(@"[YTM] Loaded %@", webView.URL.absoluteString);
     }
@@ -467,6 +435,11 @@ static NSString * const YTMSafariUserAgent =
 
 - (void)webViewWebContentProcessDidTerminate:(WKWebView *)webView {
     NSLog(@"[YTM] Web content process terminated; reloading.");
+    self.state = nil;
+    self.loading = YES;
+    if ([self.delegate respondsToSelector:@selector(webControllerDidCrash:)]) {
+        [self.delegate webControllerDidCrash:self];
+    }
     [webView reload];
 }
 
@@ -478,6 +451,19 @@ static NSString * const YTMSafariUserAgent =
                     windowFeatures:(WKWindowFeatures *)windowFeatures {
     NSURL *url = navigationAction.request.URL;
     if (!url) { return nil; }
+
+    if ([NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
+        NSLog(@"[YTM] New window requested: %@", url.absoluteString);
+    }
+
+    NSString *scheme = url.scheme.lowercaseString;
+    if ([scheme isEqualToString:@"about"] || [scheme isEqualToString:@"blob"] ||
+        [scheme isEqualToString:@"data"] || [scheme isEqualToString:@"javascript"]) {
+        // Scripted popups start on about:blank. Loading that into the main view
+        // replaces the app with an empty black document, which is far worse than
+        // simply ignoring the popup.
+        return nil;
+    }
 
     if ([self isInternalURL:url]) {
         [webView loadRequest:navigationAction.request];

@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)webControllerDidBecomeReady:(WebController *)controller;
 - (void)webController:(WebController *)controller didFailWithError:(NSError *)error;
 - (void)webController:(WebController *)controller didChangeTitle:(nullable NSString *)title;
+- (void)webControllerDidCrash:(WebController *)controller;
 
 @end
 
@@ -27,9 +28,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Latest state reported by the page. Never mutated; a new object is produced for each update.
 @property (nonatomic, strong, readonly, nullable) PlaybackState *state;
-
-/// Height reserved for the traffic lights at the top of the window (0 in full screen).
-@property (nonatomic, assign) CGFloat chromeInset;
 
 @property (nonatomic, readonly, getter=isLoading) BOOL loading;
 @property (nonatomic, readonly) BOOL canGoBack;

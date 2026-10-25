@@ -34,7 +34,6 @@ xcrun "$CC" \
 
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT/Resources/PlayerBridge.js" "$RESOURCES/PlayerBridge.js"
-cp "$ROOT/Resources/ChromeOffset.js" "$RESOURCES/ChromeOffset.js"
 
 if [[ ! -f "$ROOT/Resources/AppIcon.icns" ]]; then
   "$ROOT/Tools/make-icon.sh"

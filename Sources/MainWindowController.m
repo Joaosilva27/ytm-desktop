@@ -5,10 +5,32 @@
 
 static const CGFloat YTMChromeInset = 28.0;
 
+#pragma mark - Titlebar strip
+
+/// The thin native strip above the web view. It hosts the traffic lights and the
+/// mini player control, and lets the user drag the window by its top edge.
+@interface YTMTitlebarStripView : NSView
+@end
+
+@implementation YTMTitlebarStripView
+
+- (BOOL)mouseDownCanMoveWindow {
+    return YES;
+}
+
+@end
+
 @interface MainWindowController () <NSWindowDelegate>
 
 @property (nonatomic, strong, readwrite) WebController *webController;
 @property (nonatomic, strong) LoadingOverlayView *overlayView;
+@property (nonatomic, strong) YTMTitlebarStripView *titlebarStrip;
+@property (nonatomic, strong) NSButton *miniPlayerButton;
+@property (nonatomic, strong) NSLayoutConstraint *webTopConstraint;
+@property (nonatomic, assign) CGFloat chromeInset;
+
+- (void)miniPlayerPressed:(id)sender;
+- (void)updateMiniPlayerButtonImage;
 
 @end
 
@@ -47,18 +69,57 @@ static const CGFloat YTMChromeInset = 28.0;
     window.contentView = container;
 
     WKWebView *webView = webController.webView;
-    webView.frame = container.bounds;
-    webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    webView.translatesAutoresizingMaskIntoConstraints = NO;
     [container addSubview:webView];
 
-    _overlayView = [[LoadingOverlayView alloc] initWithFrame:container.bounds];
+    // The 28pt titlebar strip is a real native view, not a CSS margin. Letting the
+    // page start below it keeps YouTube Music's own 100vh layout untouched, which
+    // avoids the WebKit compositing corruption seen with a CSS margin on the app.
+    _chromeInset = YTMChromeInset;
+    _webTopConstraint = [webView.topAnchor constraintEqualToAnchor:container.topAnchor
+                                                         constant:_chromeInset];
+    [NSLayoutConstraint activateConstraints:@[
+        [webView.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [webView.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
+        [webView.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
+        _webTopConstraint
+    ]];
+
+    _overlayView = [[LoadingOverlayView alloc] initWithFrame:NSZeroRect];
     _overlayView.translatesAutoresizingMaskIntoConstraints = NO;
     [container addSubview:_overlayView];
     [NSLayoutConstraint activateConstraints:@[
-        [_overlayView.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
-        [_overlayView.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
-        [_overlayView.topAnchor constraintEqualToAnchor:container.topAnchor],
-        [_overlayView.bottomAnchor constraintEqualToAnchor:container.bottomAnchor]
+        [_overlayView.leadingAnchor constraintEqualToAnchor:webView.leadingAnchor],
+        [_overlayView.trailingAnchor constraintEqualToAnchor:webView.trailingAnchor],
+        [_overlayView.topAnchor constraintEqualToAnchor:webView.topAnchor],
+        [_overlayView.bottomAnchor constraintEqualToAnchor:webView.bottomAnchor]
+    ]];
+
+    _titlebarStrip = [[YTMTitlebarStripView alloc] initWithFrame:NSZeroRect];
+    _titlebarStrip.translatesAutoresizingMaskIntoConstraints = NO;
+    _titlebarStrip.wantsLayer = YES;
+    _titlebarStrip.layer.backgroundColor = window.backgroundColor.CGColor;
+    [container addSubview:_titlebarStrip];
+    [NSLayoutConstraint activateConstraints:@[
+        [_titlebarStrip.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [_titlebarStrip.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
+        [_titlebarStrip.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [_titlebarStrip.heightAnchor constraintEqualToConstant:YTMChromeInset]
+    ]];
+
+    _miniPlayerButton = [NSButton buttonWithTitle:@"Mini Player"
+                                          target:self
+                                          action:@selector(miniPlayerPressed:)];
+    _miniPlayerButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _miniPlayerButton.bezelStyle = NSBezelStyleRounded;
+    _miniPlayerButton.controlSize = NSControlSizeSmall;
+    _miniPlayerButton.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
+    _miniPlayerButton.toolTip = @"Show or hide the floating mini player";
+    [self updateMiniPlayerButtonImage];
+    [_titlebarStrip addSubview:_miniPlayerButton];
+    [NSLayoutConstraint activateConstraints:@[
+        [_miniPlayerButton.centerYAnchor constraintEqualToAnchor:_titlebarStrip.centerYAnchor],
+        [_miniPlayerButton.trailingAnchor constraintEqualToAnchor:_titlebarStrip.trailingAnchor constant:-12]
     ]];
 
     NSString *autosaveKey = [@"NSWindow Frame " stringByAppendingString:@"YTMMainWindow"];
@@ -114,19 +175,68 @@ static const CGFloat YTMChromeInset = 28.0;
     [self.overlayView showErrorWithMessage:message detail:detail retryHandler:retryHandler];
 }
 
+#pragma mark - Titlebar controls
+
+- (void)miniPlayerPressed:(id)sender {
+    if (self.miniPlayerToggleHandler) {
+        self.miniPlayerToggleHandler();
+    }
+}
+
+/// Test hook: exercises the same target/action path as a real click.
+- (void)performMiniPlayerButtonClick {
+    [self.miniPlayerButton performClick:nil];
+}
+
+- (void)updateMiniPlayerButtonVisible:(BOOL)visible {
+    self.miniPlayerButton.title = visible ? @"Hide Mini Player" : @"Mini Player";
+    self.miniPlayerButton.toolTip = visible ? @"Hide the floating mini player"
+                                            : @"Show the floating mini player";
+    [self updateMiniPlayerButtonImage];
+}
+
+- (void)updateMiniPlayerButtonImage {
+    NSString *symbol = self.miniPlayerButton.title.length > 0 &&
+                       [self.miniPlayerButton.title hasPrefix:@"Hide"] ? @"pip.exit" : @"pip";
+    NSImage *image = [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:nil];
+    NSImageSymbolConfiguration *configuration =
+        [NSImageSymbolConfiguration configurationWithPointSize:11 weight:NSFontWeightMedium];
+    image = [image imageWithSymbolConfiguration:configuration];
+    image.template = YES;
+    self.miniPlayerButton.image = image;
+    self.miniPlayerButton.imagePosition = image ? NSImageLeading : NSNoImage;
+}
+
 #pragma mark - Full screen
 
+- (void)applyChromeInset:(CGFloat)inset {
+    CGFloat clamped = MAX(0, inset);
+    self.chromeInset = clamped;
+    self.webTopConstraint.constant = clamped;
+    self.titlebarStrip.hidden = clamped < 0.5;
+    [self.window.contentView layoutSubtreeIfNeeded];
+}
+
 - (void)windowWillEnterFullScreen:(NSNotification *)notification {
-    self.webController.chromeInset = 0;
+    [self applyChromeInset:0];
 }
 
 - (void)windowDidExitFullScreen:(NSNotification *)notification {
-    self.webController.chromeInset = YTMChromeInset;
+    [self applyChromeInset:YTMChromeInset];
 }
 
 - (void)windowDidBecomeKey:(NSNotification *)notification {
-    // Re-assert the inset in case the page replaced its <style> element.
-    self.webController.chromeInset = self.window.styleMask & NSWindowStyleMaskFullScreen ? 0 : YTMChromeInset;
+    BOOL fullScreen = (self.window.styleMask & NSWindowStyleMaskFullScreen) != 0;
+    [self applyChromeInset:fullScreen ? 0 : YTMChromeInset];
+}
+
+- (void)windowDidResize:(NSNotification *)notification {
+    // Keep the native inset applied when leaving full screen through the green button.
+    BOOL fullScreen = (self.window.styleMask & NSWindowStyleMaskFullScreen) != 0;
+    CGFloat expected = fullScreen ? 0 : YTMChromeInset;
+    if (fabs(self.chromeInset - expected) > 0.5) {
+        [self applyChromeInset:expected];
+    }
 }
 
 @end
