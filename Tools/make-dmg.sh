@@ -29,7 +29,7 @@ TMP_IMAGE="$ROOT/build/YouTubeMusic-rw.dmg"
 echo "Packaging YouTube Music $VERSION…"
 
 rm -rf "$STAGE" "$TMP_IMAGE" "$OUT"
-mkdir -p "$STAGE" "$(dirname "$OUT")"
+mkdir -p "$ROOT/build" "$STAGE" "$(dirname "$OUT")"
 
 # Contents of the disk image: the app, and a link to /Applications to drop it in.
 cp -R "$APP" "$STAGE/YouTube Music.app"
