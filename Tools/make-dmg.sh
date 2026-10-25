@@ -8,6 +8,10 @@
 # The image opens as a small Finder window with the app on the left, an arrow,
 # and an Applications shortcut on the right. The same script is used by the
 # GitHub release workflow, so a local build and a release build match.
+#
+# macOS 26 Tahoe can no longer mount HFS+ disk images, so the styled image is
+# built on HFS+ where that still works and on APFS otherwise. If neither can be
+# laid out by Finder (headless CI), a plain image is written instead.
 
 set -euo pipefail
 
@@ -40,30 +44,12 @@ if [[ -f "$BACKGROUND" ]]; then
   cp "$BACKGROUND" "$STAGE/.background/background.png"
 fi
 
-# Build a read-write image first so Finder can record the window layout.
-hdiutil create \
-  -volname "$VOL_NAME" \
-  -srcfolder "$STAGE" \
-  -fs HFS+ \
-  -format UDRW \
-  -ov \
-  "$TMP_IMAGE" >/dev/null
-
-MOUNT="$(mktemp -d)"
-cleanup() {
-  hdiutil detach "$MOUNT" -force -quiet >/dev/null 2>&1 || true
-  rm -rf "$MOUNT"
-}
-trap cleanup EXIT
-
-hdiutil attach "$TMP_IMAGE" -mountpoint "$MOUNT" -nobrowse -quiet
-
-# Hide the background folder, as a hand-made disk image would.
-xcrun SetFile -a V "$MOUNT/.background" >/dev/null 2>&1 || true
-
-# Ask Finder to lay the window out. Headless CI sessions sometimes refuse to
-# script Finder, so a failure here is a warning: the image still installs.
-if [[ -f "$BACKGROUND" ]]; then
+# Lay the window out from Finder. Headless sessions sometimes refuse to script
+# Finder, so a failure here is a warning: the image still installs.
+apply_layout() {
+  local mount="$1"
+  xcrun SetFile -a V "$mount/.background" >/dev/null 2>&1 || true
+  [[ -f "$BACKGROUND" ]] || return 0
   osascript >/dev/null 2>&1 <<EOF || echo "warning: Finder layout was not applied (image is still usable)" >&2
 tell application "Finder"
   tell disk "$VOL_NAME"
@@ -84,17 +70,48 @@ tell application "Finder"
   end tell
 end tell
 EOF
+}
+
+# Build a read-write image so Finder can record the window layout, then compress.
+styled_image() {
+  local fs_flags="$1"
+  local mount
+
+  echo "→ read-write image ${fs_flags:-(default filesystem)}"
+  rm -f "$TMP_IMAGE"
+  # shellcheck disable=SC2086 # fs_flags is an intentional flag list.
+  hdiutil create -volname "$VOL_NAME" -srcfolder "$STAGE" $fs_flags -format UDRW -ov \
+    "$TMP_IMAGE" >/dev/null || return 1
+
+  mount="$(mktemp -d)"
+  echo "→ mounting"
+  if ! hdiutil attach "$TMP_IMAGE" -mountpoint "$mount" -nobrowse -quiet; then
+    rmdir "$mount" 2>/dev/null || true
+    return 1
+  fi
+
+  apply_layout "$mount"
+
+  sync
+  # Finder sometimes still holds the volume after scripting it; force the detach.
+  hdiutil detach "$mount" -quiet || hdiutil detach "$mount" -force -quiet || true
+  rmdir "$mount" 2>/dev/null || true
+
+  echo "→ compressing"
+  hdiutil convert "$TMP_IMAGE" -format UDZO -imagekey zlib-level=9 -ov -o "$OUT" >/dev/null || return 1
+  rm -f "$TMP_IMAGE"
+}
+
+if styled_image "-fs HFS+"; then
+  :
+elif styled_image "-fs APFS"; then
+  echo "note: HFS+ images are not mountable here; wrote an APFS image instead" >&2
+else
+  echo "warning: could not build the styled image; writing a plain image" >&2
+  rm -f "$OUT"
+  hdiutil create -volname "$VOL_NAME" -srcfolder "$STAGE" -format UDZO \
+    -imagekey zlib-level=9 -ov "$OUT" >/dev/null
 fi
-
-sync
-# Finder sometimes still holds the volume after scripting it; force the detach.
-hdiutil detach "$MOUNT" -quiet || hdiutil detach "$MOUNT" -force -quiet
-trap - EXIT
-rm -rf "$MOUNT"
-
-# Compress, then stamp the compressed image's checksum for release notes.
-hdiutil convert "$TMP_IMAGE" -format UDZO -imagekey zlib-level=9 -ov -o "$OUT" >/dev/null
-rm -f "$TMP_IMAGE"
 
 (
   cd "$(dirname "$OUT")"

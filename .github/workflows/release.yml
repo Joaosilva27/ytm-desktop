@@ -89,7 +89,20 @@ jobs:
 
       - name: Package disk image
         if: env.PUBLISH == 'true'
-        run: ./Tools/make-dmg.sh
+        run: |
+          set +e
+          ./Tools/make-dmg.sh > build/dmg.log 2>&1
+          status=$?
+          cat build/dmg.log
+          if [[ $status -ne 0 ]]; then
+            # Turn the tail of the log into annotations so the failure is
+            # readable from the Actions summary.
+            tail -n 20 build/dmg.log | sed '/^$/d' | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit "$status"
+          fi
+          ls -lh dist/
 
       - name: Write release notes
         if: env.PUBLISH == 'true'
