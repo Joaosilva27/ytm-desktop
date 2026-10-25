@@ -27,9 +27,9 @@ with native window behavior, media keys, and macOS integrations around it.
   menu, and quick access to the window, mini player, and settings.
 - **Mini player** — a floating always-on-top player with artwork, progress,
   and playback controls. Open it from the **Mini Player** button in the title
-  bar, the View menu, the menu bar, or with ⌘⇧M. Use the resize button in the
-  player to toggle between Tiny and your last larger size, or choose Regular,
-  Compact, or Tiny in **Settings → Mini Player**.
+  bar, the View menu, the menu bar, or with ⌘⇧M. Tiny is the default size; use
+  the resize button in the player to toggle between Tiny and your last larger
+  size, or choose Regular, Compact, or Tiny in **Settings → Mini Player**.
 - **Ad blocking** — a bundled content blocker removes known ad and tracking
   requests and hides promotional surfaces. A page script also strips ad
   metadata and fast-forwards in-player ads. Control it in

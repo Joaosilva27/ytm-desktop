@@ -30,7 +30,7 @@ static NSString * const KeyStartPage = @"startPage";
         KeyKeepPlayingOnClose: @YES,
         KeyOpenExternalLinks: @YES,
         KeyAlwaysOnTop: @NO,
-        KeyMiniPlayerSize: @(YTMMiniPlayerSizeRegular),
+        KeyMiniPlayerSize: @(YTMMiniPlayerSizeTiny),
         KeyBlockAds: @YES,
         KeyStartPage: @"https://music.youtube.com/"
     }];
@@ -42,7 +42,7 @@ static NSString * const KeyStartPage = @"startPage";
     _alwaysOnTop = [defaults boolForKey:KeyAlwaysOnTop];
     NSInteger miniPlayerSize = [defaults integerForKey:KeyMiniPlayerSize];
     if (miniPlayerSize < YTMMiniPlayerSizeRegular || miniPlayerSize > YTMMiniPlayerSizeTiny) {
-        miniPlayerSize = YTMMiniPlayerSizeRegular;
+        miniPlayerSize = YTMMiniPlayerSizeTiny;
     }
     _miniPlayerSize = (YTMMiniPlayerSize)miniPlayerSize;
     _blockAds = [defaults boolForKey:KeyBlockAds];
@@ -76,7 +76,7 @@ static NSString * const KeyStartPage = @"startPage";
 
 - (void)setMiniPlayerSize:(YTMMiniPlayerSize)value {
     if (value < YTMMiniPlayerSizeRegular || value > YTMMiniPlayerSizeTiny) {
-        value = YTMMiniPlayerSizeRegular;
+        value = YTMMiniPlayerSizeTiny;
     }
     _miniPlayerSize = value;
     [[NSUserDefaults standardUserDefaults] setInteger:value forKey:KeyMiniPlayerSize];
