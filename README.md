@@ -8,7 +8,72 @@ with native window behavior, media keys, and macOS integrations around it.
 > Unofficial client. Not affiliated with, endorsed by, or sponsored by Google
 > LLC. YouTube Music is a trademark of Google LLC.
 
+<p align="center">
+  <a href="https://github.com/Joaosilva27/ytm-desktop/releases/latest">
+    <img src="docs/screenshots/download-button.png" width="560" alt="Download YouTube Music for macOS">
+  </a>
+</p>
+
 ![YouTube Music showing the home page](docs/screenshots/home.png)
+
+## Install
+
+No build tools, no Terminal. Grab the disk image from the
+[latest release](https://github.com/Joaosilva27/ytm-desktop/releases/latest) —
+it is a universal build, so the same download runs on Apple silicon and Intel.
+
+### 1. Download the disk image
+
+Under **Assets** on the release page, download `YouTube-Music-<version>.dmg`.
+
+![The disk image on the release page](docs/screenshots/install-download.png)
+
+### 2. Drag the app into Applications
+
+Double-click the `.dmg` to open it, then drag **YouTube Music** onto the
+**Applications** folder next to it. That is the whole installation. Eject the
+disk image when you are done.
+
+![Dragging YouTube Music into Applications](docs/screenshots/install-drag.png)
+
+### 3. Allow the app to open, once
+
+The app is built outside the App Store and is not notarized by Apple, so the
+first launch is blocked with *"YouTube Music" Not Opened* — macOS cannot verify
+an app it has never seen before.
+
+Open **System Settings → Privacy & Security**, scroll to **Security**, and click
+**Open Anyway** next to the message about YouTube Music. Confirm with your
+password or Touch ID, then click **Open Anyway** in the final dialog.
+
+![Open Anyway in Privacy & Security](docs/screenshots/install-open.png)
+
+macOS remembers the decision, so this happens only on the first launch. On
+macOS 13 and 14 you can also right-click the app in Applications, choose
+**Open**, and confirm.
+
+If you would rather do it from the terminal, the effect is the same:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/YouTube Music.app"
+```
+
+### After installing
+
+1. Open YouTube Music and click **Sign in** to complete Google's sign-in flow
+   in the app window.
+2. Play something. Click **Mini Player** in the title bar (or use
+   **View → Show Mini Player**) to open the floating player.
+
+Credentials are entered directly on Google's pages; the app never reads or
+stores them. Authentication redirects never leave the app for a browser.
+
+### Uninstall
+
+Quit the app, then drag **YouTube Music** from Applications to the Bin. Your
+session and settings live in `~/Library/WebKit/com.joaosilva.ytmdesktop`; remove
+that folder too if you want a clean slate. Turn off **Launch at login** in
+Settings first if you enabled it.
 
 ## Features
 
@@ -53,12 +118,13 @@ with native window behavior, media keys, and macOS integrations around it.
 
 ## Requirements
 
-- macOS 13 Ventura or later (Apple Silicon or Intel)
-- Xcode Command Line Tools (`xcode-select --install`)
+To use the app: macOS 13 Ventura or later, Apple silicon or Intel. Nothing else.
 
-There are no third-party dependencies and no Xcode project to open.
+To build it: macOS 13 or later and the Xcode Command Line Tools
+(`xcode-select --install`). There are no third-party dependencies and no Xcode
+project to open.
 
-## Build
+## Build from source
 
 ```sh
 git clone <this-repo> ytm-desktop
@@ -77,16 +143,31 @@ The build compiles the Objective-C sources with `clang`, assembles
 `dist/YouTube Music.app`, copies the JavaScript resources, and ad-hoc signs the bundle.
 The app is built locally, so it is not notarized.
 
-## First run
+To produce a distributable universal build and a drag-to-install disk image —
+the same two commands the release workflow runs:
 
-1. Open YouTube Music.
-2. Click **Sign in** and complete Google's sign-in flow in the app window.
-3. Play something. Click **Mini Player** in the title bar (or use
-   **View → Show Mini Player**) to open the floating player.
+```sh
+UNIVERSAL=1 VERSION=1.0.0 ./Tools/build.sh
+./Tools/make-dmg.sh
+```
 
-Google sign-in is shown inside the app using a Safari-compatible user agent.
-Credentials are entered directly on Google's pages; the app never reads or stores
-them. Authentication redirects never leave the app for a browser.
+`Tools/make-dmg.sh` writes `dist/YouTube-Music-<version>.dmg` plus a `.sha256`
+checksum, with the app, an Applications shortcut, and a Finder window layout.
+
+## Cutting a release
+
+Releases are built on GitHub's macOS runners — no Mac needed. Push a tag:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) then builds a
+universal app, packages the disk image, and publishes a release page using
+[`.github/release-notes.md`](.github/release-notes.md) as the body, with the
+changelog taken from the commits since the previous tag. The workflow can also
+be started by hand from the Actions tab with a version number.
 
 ## How it works
 
@@ -136,6 +217,12 @@ Re-generate the app icon after editing `Tools/IconGen.m`:
 
 ```sh
 ./Tools/make-icon.sh
+```
+
+Re-generate the README and disk-image artwork (needs Python 3 and Pillow):
+
+```sh
+python3 Tools/make-docs-images.py
 ```
 
 ## Known limitations

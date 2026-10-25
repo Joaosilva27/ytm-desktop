@@ -1,0 +1,118 @@
+name: Release
+
+# Builds a universal macOS app, packages it as a drag-to-install disk image and
+# publishes it on the releases page.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# or run this workflow from the Actions tab and type a version.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, for example 1.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-14
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out the version
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="${INPUT_VERSION#v}"
+            TAG="v$VERSION"
+          else
+            TAG="$GITHUB_REF_NAME"
+            VERSION="${TAG#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Building YouTube Music $VERSION ($TAG)"
+
+      - name: Build universal app
+        run: UNIVERSAL=1 VERSION="$VERSION" ./Tools/build.sh
+
+      - name: Check the bundle
+        run: |
+          set -euo pipefail
+          APP="dist/YouTube Music.app"
+          lipo -info "$APP/Contents/MacOS/YouTube Music"
+          lipo -archs "$APP/Contents/MacOS/YouTube Music" | grep -q arm64
+          lipo -archs "$APP/Contents/MacOS/YouTube Music" | grep -q x86_64
+          plutil -lint "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist"
+          codesign --verify --deep --strict "$APP"
+
+      - name: Package disk image
+        run: ./Tools/make-dmg.sh
+
+      - name: Write release notes
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+
+          version = os.environ["VERSION"]
+          tag = os.environ["TAG"]
+
+
+          def git(*args):
+              result = subprocess.run(
+                  ["git", *args], capture_output=True, text=True
+              )
+              return result.stdout.strip() if result.returncode == 0 else ""
+
+
+          target = git("rev-parse", "--verify", "--quiet", tag) or git("rev-parse", "HEAD")
+          previous = git("describe", "--tags", "--abbrev=0", target + "^")
+          changes = git("log", "--no-merges", "--pretty=- %s", f"{previous}..{target}")
+          if not changes.strip():
+              changes = "- First public release."
+
+          template = pathlib.Path(".github/release-notes.md").read_text()
+          notes = (
+              template.replace("__VERSION__", version)
+              .replace("__TAG__", tag)
+              .replace("__CHANGES__", changes)
+          )
+          pathlib.Path("build/release-notes.md").write_text(notes)
+          print(notes)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YouTube-Music-DMG
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: YouTube Music ${{ env.VERSION }}
+          body_path: build/release-notes.md
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.dmg
+            dist/*.sha256
