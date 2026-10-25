@@ -112,6 +112,7 @@
     Preferences *preferences = [Preferences sharedPreferences];
     [self.statusItemController setVisible:preferences.showMenuBarPlayer];
     [self.mainWindowController applyAlwaysOnTop:preferences.alwaysOnTop];
+    [self.miniPlayerController applyPreferredSize];
     [self.statusItemController updateWithState:self.webController.state];
 }
 

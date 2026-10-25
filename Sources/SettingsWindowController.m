@@ -11,13 +11,14 @@
 @property (nonatomic, strong) NSButton *externalLinksCheckbox;
 @property (nonatomic, strong) NSButton *loginCheckbox;
 @property (nonatomic, strong) NSTextField *startPageField;
+@property (nonatomic, strong) NSPopUpButton *miniPlayerSizePopUp;
 
 @end
 
 @implementation SettingsWindowController
 
 - (instancetype)init {
-    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 500, 530)
+    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 500, 560)
                                                    styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable)
                                                      backing:NSBackingStoreBuffered
                                                        defer:NO];
@@ -60,6 +61,41 @@
                                                 action:@selector(alwaysOnTopChanged:)];
     [stack addArrangedSubview:self.alwaysOnTopCheckbox];
     [stack setCustomSpacing:22 afterView:self.alwaysOnTopCheckbox];
+
+    [stack addArrangedSubview:[self sectionLabel:@"Mini Player"]];
+    [stack setCustomSpacing:10 afterView:stack.arrangedSubviews.lastObject];
+
+    NSTextField *sizeLabel = [NSTextField labelWithString:@"Size"];
+    sizeLabel.font = [NSFont systemFontOfSize:13];
+    sizeLabel.textColor = NSColor.secondaryLabelColor;
+    sizeLabel.translatesAutoresizingMaskIntoConstraints = NO;
+
+    self.miniPlayerSizePopUp = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+    self.miniPlayerSizePopUp.translatesAutoresizingMaskIntoConstraints = NO;
+    self.miniPlayerSizePopUp.font = [NSFont systemFontOfSize:13];
+    self.miniPlayerSizePopUp.target = self;
+    self.miniPlayerSizePopUp.action = @selector(miniPlayerSizeChanged:);
+    NSArray<NSString *> *miniPlayerSizeTitles = @[@"Regular", @"Compact", @"Tiny"];
+    for (NSUInteger index = 0; index < miniPlayerSizeTitles.count; index++) {
+        [self.miniPlayerSizePopUp addItemWithTitle:miniPlayerSizeTitles[index]];
+        self.miniPlayerSizePopUp.lastItem.tag = (NSInteger)index;
+    }
+    [self.miniPlayerSizePopUp.widthAnchor constraintEqualToConstant:140].active = YES;
+
+    NSStackView *sizeRow = [NSStackView stackViewWithViews:@[sizeLabel, self.miniPlayerSizePopUp]];
+    sizeRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    sizeRow.alignment = NSLayoutAttributeCenterY;
+    sizeRow.spacing = 8;
+    sizeRow.translatesAutoresizingMaskIntoConstraints = NO;
+    [stack addArrangedSubview:sizeRow];
+
+    NSTextField *miniPlayerHint = [NSTextField labelWithString:
+        @"The floating player keeps its bottom-right corner when resized."];
+    miniPlayerHint.font = [NSFont systemFontOfSize:11];
+    miniPlayerHint.textColor = NSColor.secondaryLabelColor;
+    miniPlayerHint.translatesAutoresizingMaskIntoConstraints = NO;
+    [stack addArrangedSubview:miniPlayerHint];
+    [stack setCustomSpacing:22 afterView:miniPlayerHint];
 
     [stack addArrangedSubview:[self sectionLabel:@"Links"]];
     [stack setCustomSpacing:10 afterView:stack.arrangedSubviews.lastObject];
@@ -182,6 +218,10 @@
     self.externalLinksCheckbox.state = preferences.openExternalLinksInBrowser ? NSControlStateValueOn : NSControlStateValueOff;
     self.loginCheckbox.state = [LoginItemManager isEnabled] ? NSControlStateValueOn : NSControlStateValueOff;
     self.startPageField.stringValue = preferences.startPage;
+    NSInteger sizeIndex = [self.miniPlayerSizePopUp indexOfItemWithTag:preferences.miniPlayerSize];
+    if (sizeIndex >= 0) {
+        [self.miniPlayerSizePopUp selectItemAtIndex:sizeIndex];
+    }
 }
 
 #pragma mark - Actions
@@ -200,6 +240,10 @@
 
 - (void)externalLinksChanged:(NSButton *)sender {
     [Preferences sharedPreferences].openExternalLinksInBrowser = sender.state == NSControlStateValueOn;
+}
+
+- (void)miniPlayerSizeChanged:(NSPopUpButton *)sender {
+    [Preferences sharedPreferences].miniPlayerSize = (YTMMiniPlayerSize)sender.selectedTag;
 }
 
 - (void)loginItemChanged:(NSButton *)sender {
@@ -268,6 +312,7 @@
     preferences.keepPlayingOnClose = YES;
     preferences.openExternalLinksInBrowser = YES;
     preferences.alwaysOnTop = NO;
+    preferences.miniPlayerSize = YTMMiniPlayerSizeRegular;
     preferences.startPage = @"https://music.youtube.com/";
     [self syncControls];
 }

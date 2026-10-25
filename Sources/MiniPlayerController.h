@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)showWithState:(nullable PlaybackState *)state;
 - (void)hide;
 - (void)updateWithState:(nullable PlaybackState *)state;
+- (void)applyPreferredSize;
 
 @end
 

@@ -2,17 +2,66 @@
 
 #import "ArtworkLoader.h"
 #import "PlaybackState.h"
+#import "Preferences.h"
 
-static const CGFloat YTMMiniWidth = 396;
-static const CGFloat YTMMiniHeight = 132;
+typedef struct {
+    CGFloat width;
+    CGFloat height;
+    CGFloat cornerRadius;
+
+    CGFloat margin;
+    CGFloat coverSize;
+    CGFloat coverRadius;
+    CGFloat coverTextGap;
+
+    CGFloat titleTop;
+    CGFloat titleSize;
+    CGFloat artistSize;
+    CGFloat titleTrailingGap;
+
+    CGFloat closeTop;
+    CGFloat closeTrailing;
+    CGFloat closeSize;
+    CGFloat closeSymbol;
+
+    CGFloat progressTop;
+    CGFloat progressHeight;
+    CGFloat timeTop;
+    CGFloat timeSize;
+
+    CGFloat controlsBottom;
+    CGFloat previousWidth;
+    CGFloat previousSymbol;
+    CGFloat playWidth;
+    CGFloat playSymbol;
+    CGFloat nextWidth;
+    CGFloat nextSymbol;
+    CGFloat likeWidth;
+    CGFloat likeSymbol;
+    CGFloat controlGap;
+    CGFloat likeGap;
+    CGFloat openWidth;
+    CGFloat openSymbol;
+
+    BOOL showsTime;
+} YTMMiniMetrics;
 
 #pragma mark - Cover
 
 @interface YTMCoverView : NSView
 @property (nonatomic, strong, nullable) NSImage *image;
+@property (nonatomic, assign) CGFloat cornerRadius;
 @end
 
 @implementation YTMCoverView
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    self = [super initWithFrame:frameRect];
+    if (self) {
+        _cornerRadius = 12;
+    }
+    return self;
+}
 
 - (BOOL)mouseDownCanMoveWindow {
     return YES;
@@ -23,9 +72,16 @@ static const CGFloat YTMMiniHeight = 132;
     self.needsDisplay = YES;
 }
 
+- (void)setCornerRadius:(CGFloat)cornerRadius {
+    _cornerRadius = cornerRadius;
+    self.needsDisplay = YES;
+}
+
 - (void)drawRect:(NSRect)dirtyRect {
     NSRect bounds = self.bounds;
-    NSBezierPath *clip = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:12 yRadius:12];
+    NSBezierPath *clip = [NSBezierPath bezierPathWithRoundedRect:bounds
+                                                         xRadius:self.cornerRadius
+                                                         yRadius:self.cornerRadius];
     [clip addClip];
 
     NSImage *image = self.image;
@@ -113,6 +169,7 @@ static const CGFloat YTMMiniHeight = 132;
 @interface MiniPlayerController ()
 
 @property (nonatomic, strong) NSPanel *panel;
+@property (nonatomic, strong) YTMMiniBackgroundView *backgroundView;
 @property (nonatomic, strong) YTMCoverView *coverView;
 @property (nonatomic, strong) NSTextField *titleLabel;
 @property (nonatomic, strong) NSTextField *artistLabel;
@@ -122,10 +179,18 @@ static const CGFloat YTMMiniHeight = 132;
 @property (nonatomic, strong) NSButton *previousButton;
 @property (nonatomic, strong) NSButton *nextButton;
 @property (nonatomic, strong) NSButton *likeButton;
+@property (nonatomic, strong) NSButton *openButton;
+@property (nonatomic, strong) NSButton *closeButton;
+@property (nonatomic, strong) NSArray<NSLayoutConstraint *> *layoutConstraints;
 @property (nonatomic, strong, nullable) PlaybackState *state;
 @property (nonatomic, strong, nullable) NSURL *artworkURL;
 @property (nonatomic, strong, nullable) NSURL *loadingArtworkURL;
+@property (nonatomic, assign) YTMMiniMetrics metrics;
+@property (nonatomic, assign) YTMMiniPlayerSize appliedSize;
 
+- (YTMMiniMetrics)metricsForSize:(YTMMiniPlayerSize)size;
+- (void)applyMetricsAnimated:(BOOL)animated;
+- (void)resizePanelPreservingBottomRightAnimated:(BOOL)animated;
 - (void)ensureVisibleFrame;
 
 @end
@@ -136,7 +201,12 @@ static const CGFloat YTMMiniHeight = 132;
     self = [super init];
     if (!self) { return nil; }
 
-    NSPanel *panel = [[YTMMiniPanel alloc] initWithContentRect:NSMakeRect(0, 0, YTMMiniWidth, YTMMiniHeight)
+    YTMMiniPlayerSize size = [Preferences sharedPreferences].miniPlayerSize;
+    YTMMiniMetrics metrics = [self metricsForSize:size];
+    _appliedSize = size;
+    _metrics = metrics;
+
+    NSPanel *panel = [[YTMMiniPanel alloc] initWithContentRect:NSMakeRect(0, 0, metrics.width, metrics.height)
                                                      styleMask:(NSWindowStyleMaskBorderless |
                                                                 NSWindowStyleMaskNonactivatingPanel)
                                                        backing:NSBackingStoreBuffered
@@ -154,8 +224,8 @@ static const CGFloat YTMMiniHeight = 132;
     panel.movableByWindowBackground = YES;
     panel.animationBehavior = NSWindowAnimationBehaviorUtilityWindow;
     panel.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
-    panel.contentMinSize = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
-    panel.contentMaxSize = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
+    panel.contentMinSize = NSMakeSize(metrics.width, metrics.height);
+    panel.contentMaxSize = NSMakeSize(metrics.width, metrics.height);
     if ([panel respondsToSelector:@selector(setBecomesKeyOnlyIfNeeded:)]) {
         panel.becomesKeyOnlyIfNeeded = YES;
     }
@@ -166,14 +236,131 @@ static const CGFloat YTMMiniHeight = 132;
     background.blendingMode = NSVisualEffectBlendingModeBehindWindow;
     background.state = NSVisualEffectStateActive;
     background.wantsLayer = YES;
-    background.layer.cornerRadius = 16;
+    background.layer.cornerRadius = metrics.cornerRadius;
     background.layer.masksToBounds = YES;
     panel.contentView = background;
+    self.backgroundView = background;
 
     [self buildInterfaceInView:background];
+    [self applyMetricsAnimated:NO];
+    [self updateWithState:nil];
     [self positionPanelIfNeeded];
 
     return self;
+}
+
+- (YTMMiniMetrics)metricsForSize:(YTMMiniPlayerSize)size {
+    if (size == YTMMiniPlayerSizeTiny) {
+        return (YTMMiniMetrics){
+            .width = 252,
+            .height = 80,
+            .cornerRadius = 12,
+            .margin = 9,
+            .coverSize = 58,
+            .coverRadius = 8,
+            .coverTextGap = 9,
+            .titleTop = 8,
+            .titleSize = 12,
+            .artistSize = 10,
+            .titleTrailingGap = 6,
+            .closeTop = 5,
+            .closeTrailing = 6,
+            .closeSize = 15,
+            .closeSymbol = 8.5,
+            .progressTop = 5,
+            .progressHeight = 3,
+            .timeTop = 3,
+            .timeSize = 8.5,
+            .controlsBottom = 7,
+            .previousWidth = 17,
+            .previousSymbol = 9.5,
+            .playWidth = 19,
+            .playSymbol = 13,
+            .nextWidth = 17,
+            .nextSymbol = 9.5,
+            .likeWidth = 17,
+            .likeSymbol = 9.5,
+            .controlGap = 4,
+            .likeGap = 7,
+            .openWidth = 17,
+            .openSymbol = 9.5,
+            .showsTime = NO
+        };
+    }
+
+    if (size == YTMMiniPlayerSizeCompact) {
+        return (YTMMiniMetrics){
+            .width = 324,
+            .height = 104,
+            .cornerRadius = 14,
+            .margin = 12,
+            .coverSize = 76,
+            .coverRadius = 10,
+            .coverTextGap = 12,
+            .titleTop = 10,
+            .titleSize = 13.5,
+            .artistSize = 11,
+            .titleTrailingGap = 8,
+            .closeTop = 8,
+            .closeTrailing = 8,
+            .closeSize = 18,
+            .closeSymbol = 10,
+            .progressTop = 6,
+            .progressHeight = 3.5,
+            .timeTop = 3,
+            .timeSize = 9,
+            .controlsBottom = 10,
+            .previousWidth = 22,
+            .previousSymbol = 12,
+            .playWidth = 24,
+            .playSymbol = 16,
+            .nextWidth = 22,
+            .nextSymbol = 12,
+            .likeWidth = 20,
+            .likeSymbol = 11.5,
+            .controlGap = 6,
+            .likeGap = 10,
+            .openWidth = 20,
+            .openSymbol = 11,
+            .showsTime = YES
+        };
+    }
+
+    return (YTMMiniMetrics){
+        .width = 396,
+        .height = 132,
+        .cornerRadius = 16,
+        .margin = 16,
+        .coverSize = 100,
+        .coverRadius = 12,
+        .coverTextGap = 14,
+        .titleTop = 14,
+        .titleSize = 15,
+        .artistSize = 12,
+        .titleTrailingGap = 10,
+        .closeTop = 12,
+        .closeTrailing = 12,
+        .closeSize = 20,
+        .closeSymbol = 11,
+        .progressTop = 8,
+        .progressHeight = 4,
+        .timeTop = 4,
+        .timeSize = 9.5,
+        .controlsBottom = 14,
+        .previousWidth = 26,
+        .previousSymbol = 14,
+        .playWidth = 28,
+        .playSymbol = 19,
+        .nextWidth = 26,
+        .nextSymbol = 14,
+        .likeWidth = 24,
+        .likeSymbol = 13,
+        .controlGap = 8,
+        .likeGap = 14,
+        .openWidth = 24,
+        .openSymbol = 13,
+        .showsTime = YES
+    };
 }
 
 - (void)buildInterfaceInView:(NSView *)view {
@@ -224,66 +411,151 @@ static const CGFloat YTMMiniHeight = 132;
     NSButton *openButton = [self buttonWithSymbol:@"arrow.up.forward.square" size:13 action:@selector(openPressed:) tooltip:@"Open YouTube Music"];
     openButton.translatesAutoresizingMaskIntoConstraints = NO;
     [view addSubview:openButton];
+    _openButton = openButton;
 
     NSButton *closeButton = [self buttonWithSymbol:@"xmark" size:11 action:@selector(closePressed:) tooltip:@"Hide Mini Player"];
     closeButton.translatesAutoresizingMaskIntoConstraints = NO;
     [view addSubview:closeButton];
+    _closeButton = closeButton;
+}
 
-    [NSLayoutConstraint activateConstraints:@[
-        [_coverView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor constant:16],
-        [_coverView.centerYAnchor constraintEqualToAnchor:view.centerYAnchor],
-        [_coverView.widthAnchor constraintEqualToConstant:100],
-        [_coverView.heightAnchor constraintEqualToConstant:100],
+- (void)applyMetricsAnimated:(BOOL)animated {
+    YTMMiniMetrics metrics = self.metrics;
 
-        [closeButton.topAnchor constraintEqualToAnchor:view.topAnchor constant:12],
-        [closeButton.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-12],
-        [closeButton.widthAnchor constraintEqualToConstant:20],
-        [closeButton.heightAnchor constraintEqualToConstant:20],
+    if (self.layoutConstraints.count > 0) {
+        [NSLayoutConstraint deactivateConstraints:self.layoutConstraints];
+    }
 
-        [_titleLabel.topAnchor constraintEqualToAnchor:view.topAnchor constant:14],
-        [_titleLabel.leadingAnchor constraintEqualToAnchor:_coverView.trailingAnchor constant:14],
-        [_titleLabel.trailingAnchor constraintEqualToAnchor:closeButton.leadingAnchor constant:-10],
+    self.backgroundView.layer.cornerRadius = metrics.cornerRadius;
+    self.coverView.cornerRadius = metrics.coverRadius;
+    self.titleLabel.font = [NSFont systemFontOfSize:metrics.titleSize weight:NSFontWeightSemibold];
+    self.artistLabel.font = [NSFont systemFontOfSize:metrics.artistSize weight:NSFontWeightRegular];
+    if (@available(macOS 10.15, *)) {
+        self.timeLabel.font = [NSFont monospacedDigitSystemFontOfSize:metrics.timeSize weight:NSFontWeightRegular];
+    } else {
+        self.timeLabel.font = [NSFont systemFontOfSize:metrics.timeSize weight:NSFontWeightRegular];
+    }
+    self.timeLabel.hidden = !metrics.showsTime;
 
-        [_artistLabel.topAnchor constraintEqualToAnchor:_titleLabel.bottomAnchor constant:2],
-        [_artistLabel.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
-        [_artistLabel.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-16],
+    self.previousButton.image = [self imageNamed:@"backward.fill" size:metrics.previousSymbol];
+    self.playButton.image = [self imageNamed:(self.state.isPlaying ? @"pause.fill" : @"play.fill")
+                                      size:metrics.playSymbol];
+    self.nextButton.image = [self imageNamed:@"forward.fill" size:metrics.nextSymbol];
+    self.likeButton.image = [self imageNamed:(self.state.isLiked ? @"hand.thumbsup.fill" : @"hand.thumbsup")
+                                      size:metrics.likeSymbol];
+    self.openButton.image = [self imageNamed:@"arrow.up.forward.square" size:metrics.openSymbol];
+    self.closeButton.image = [self imageNamed:@"xmark" size:metrics.closeSymbol];
 
-        [_progressView.topAnchor constraintEqualToAnchor:_artistLabel.bottomAnchor constant:8],
-        [_progressView.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
-        [_progressView.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-16],
-        [_progressView.heightAnchor constraintEqualToConstant:4],
+    self.layoutConstraints = @[
+        [self.coverView.leadingAnchor constraintEqualToAnchor:self.backgroundView.leadingAnchor
+                                                     constant:metrics.margin],
+        [self.coverView.centerYAnchor constraintEqualToAnchor:self.backgroundView.centerYAnchor],
+        [self.coverView.widthAnchor constraintEqualToConstant:metrics.coverSize],
+        [self.coverView.heightAnchor constraintEqualToConstant:metrics.coverSize],
 
-        [_timeLabel.topAnchor constraintEqualToAnchor:_progressView.bottomAnchor constant:4],
-        [_timeLabel.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
-        [_timeLabel.trailingAnchor constraintEqualToAnchor:_progressView.trailingAnchor],
+        [self.closeButton.topAnchor constraintEqualToAnchor:self.backgroundView.topAnchor
+                                                   constant:metrics.closeTop],
+        [self.closeButton.trailingAnchor constraintEqualToAnchor:self.backgroundView.trailingAnchor
+                                                        constant:-metrics.closeTrailing],
+        [self.closeButton.widthAnchor constraintEqualToConstant:metrics.closeSize],
+        [self.closeButton.heightAnchor constraintEqualToConstant:metrics.closeSize],
 
-        [_previousButton.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
-        [_previousButton.bottomAnchor constraintEqualToAnchor:view.bottomAnchor constant:-14],
-        [_previousButton.widthAnchor constraintEqualToConstant:26],
-        [_previousButton.heightAnchor constraintEqualToConstant:26],
+        [self.titleLabel.topAnchor constraintEqualToAnchor:self.backgroundView.topAnchor
+                                                  constant:metrics.titleTop],
+        [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.coverView.trailingAnchor
+                                                      constant:metrics.coverTextGap],
+        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.closeButton.leadingAnchor
+                                                       constant:-metrics.titleTrailingGap],
 
-        [_playButton.leadingAnchor constraintEqualToAnchor:_previousButton.trailingAnchor constant:8],
-        [_playButton.centerYAnchor constraintEqualToAnchor:_previousButton.centerYAnchor],
-        [_playButton.widthAnchor constraintEqualToConstant:28],
-        [_playButton.heightAnchor constraintEqualToConstant:28],
+        [self.artistLabel.topAnchor constraintEqualToAnchor:self.titleLabel.bottomAnchor constant:2],
+        [self.artistLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.artistLabel.trailingAnchor constraintEqualToAnchor:self.backgroundView.trailingAnchor
+                                                        constant:-metrics.margin],
 
-        [_nextButton.leadingAnchor constraintEqualToAnchor:_playButton.trailingAnchor constant:8],
-        [_nextButton.centerYAnchor constraintEqualToAnchor:_previousButton.centerYAnchor],
-        [_nextButton.widthAnchor constraintEqualToConstant:26],
-        [_nextButton.heightAnchor constraintEqualToConstant:26],
+        [self.progressView.topAnchor constraintEqualToAnchor:self.artistLabel.bottomAnchor
+                                                     constant:metrics.progressTop],
+        [self.progressView.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.progressView.trailingAnchor constraintEqualToAnchor:self.backgroundView.trailingAnchor
+                                                         constant:-metrics.margin],
+        [self.progressView.heightAnchor constraintEqualToConstant:metrics.progressHeight],
 
-        [_likeButton.leadingAnchor constraintEqualToAnchor:_nextButton.trailingAnchor constant:14],
-        [_likeButton.centerYAnchor constraintEqualToAnchor:_previousButton.centerYAnchor],
-        [_likeButton.widthAnchor constraintEqualToConstant:24],
-        [_likeButton.heightAnchor constraintEqualToConstant:24],
+        [self.timeLabel.topAnchor constraintEqualToAnchor:self.progressView.bottomAnchor
+                                                 constant:metrics.timeTop],
+        [self.timeLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.timeLabel.trailingAnchor constraintEqualToAnchor:self.progressView.trailingAnchor],
 
-        [openButton.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-16],
-        [openButton.centerYAnchor constraintEqualToAnchor:_previousButton.centerYAnchor],
-        [openButton.widthAnchor constraintEqualToConstant:24],
-        [openButton.heightAnchor constraintEqualToConstant:24]
-    ]];
+        [self.previousButton.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.previousButton.bottomAnchor constraintEqualToAnchor:self.backgroundView.bottomAnchor
+                                                         constant:-metrics.controlsBottom],
+        [self.previousButton.widthAnchor constraintEqualToConstant:metrics.previousWidth],
+        [self.previousButton.heightAnchor constraintEqualToConstant:metrics.previousWidth],
 
-    [self updateWithState:nil];
+        [self.playButton.leadingAnchor constraintEqualToAnchor:self.previousButton.trailingAnchor
+                                                       constant:metrics.controlGap],
+        [self.playButton.centerYAnchor constraintEqualToAnchor:self.previousButton.centerYAnchor],
+        [self.playButton.widthAnchor constraintEqualToConstant:metrics.playWidth],
+        [self.playButton.heightAnchor constraintEqualToConstant:metrics.playWidth],
+
+        [self.nextButton.leadingAnchor constraintEqualToAnchor:self.playButton.trailingAnchor
+                                                       constant:metrics.controlGap],
+        [self.nextButton.centerYAnchor constraintEqualToAnchor:self.previousButton.centerYAnchor],
+        [self.nextButton.widthAnchor constraintEqualToConstant:metrics.nextWidth],
+        [self.nextButton.heightAnchor constraintEqualToConstant:metrics.nextWidth],
+
+        [self.likeButton.leadingAnchor constraintEqualToAnchor:self.nextButton.trailingAnchor
+                                                       constant:metrics.likeGap],
+        [self.likeButton.centerYAnchor constraintEqualToAnchor:self.previousButton.centerYAnchor],
+        [self.likeButton.widthAnchor constraintEqualToConstant:metrics.likeWidth],
+        [self.likeButton.heightAnchor constraintEqualToConstant:metrics.likeWidth],
+
+        [self.openButton.trailingAnchor constraintEqualToAnchor:self.backgroundView.trailingAnchor
+                                                        constant:-metrics.margin],
+        [self.openButton.centerYAnchor constraintEqualToAnchor:self.previousButton.centerYAnchor],
+        [self.openButton.widthAnchor constraintEqualToConstant:metrics.openWidth],
+        [self.openButton.heightAnchor constraintEqualToConstant:metrics.openWidth]
+    ];
+    [NSLayoutConstraint activateConstraints:self.layoutConstraints];
+
+    self.panel.contentMinSize = NSMakeSize(1, 1);
+    self.panel.contentMaxSize = NSMakeSize(metrics.width, metrics.height);
+    self.panel.contentMinSize = NSMakeSize(metrics.width, metrics.height);
+
+    [self resizePanelPreservingBottomRightAnimated:animated];
+}
+
+- (void)resizePanelPreservingBottomRightAnimated:(BOOL)animated {
+    NSScreen *screen = self.panel.screen ?: NSScreen.mainScreen;
+    NSRect frame = self.panel.frame;
+    CGFloat right = NSMaxX(frame);
+    CGFloat bottom = NSMinY(frame);
+
+    frame.size = NSMakeSize(self.metrics.width, self.metrics.height);
+    frame.origin = NSMakePoint(right - NSWidth(frame), bottom);
+
+    if (screen) {
+        NSRect visible = screen.visibleFrame;
+        frame.origin.x = MIN(MAX(frame.origin.x, NSMinX(visible)),
+                             NSMaxX(visible) - NSWidth(frame));
+        frame.origin.y = MIN(MAX(frame.origin.y, NSMinY(visible)),
+                             NSMaxY(visible) - NSHeight(frame));
+    }
+
+    [self.panel setFrame:frame display:YES animate:animated && self.panel.isVisible];
+}
+
+- (void)applyPreferredSize {
+    YTMMiniPlayerSize size = [Preferences sharedPreferences].miniPlayerSize;
+    YTMMiniMetrics metrics = [self metricsForSize:size];
+    if (size == self.appliedSize &&
+        metrics.width == self.metrics.width &&
+        metrics.height == self.metrics.height) {
+        return;
+    }
+
+    self.appliedSize = size;
+    self.metrics = metrics;
+    [self applyMetricsAnimated:self.panel.isVisible];
+    [self ensureVisibleFrame];
 }
 
 - (NSTextField *)labelWithString:(NSString *)string
@@ -328,7 +600,7 @@ static const CGFloat YTMMiniHeight = 132;
         }
         // Old builds could autosave a width stretched by a long track title; always reset the size.
         NSRect frame = self.panel.frame;
-        frame.size = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
+        frame.size = NSMakeSize(self.metrics.width, self.metrics.height);
         [self.panel setFrame:frame display:NO];
         return;
     }
@@ -337,7 +609,7 @@ static const CGFloat YTMMiniHeight = 132;
     if (!screen) { return; }
     NSRect visible = screen.visibleFrame;
     NSRect frame = self.panel.frame;
-    frame.size = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
+    frame.size = NSMakeSize(self.metrics.width, self.metrics.height);
     frame.origin.x = NSMaxX(visible) - NSWidth(frame) - 24;
     frame.origin.y = NSMinY(visible) + 24;
     [self.panel setFrame:frame display:NO];
@@ -364,7 +636,7 @@ static const CGFloat YTMMiniHeight = 132;
     if (!screen) { return; }
 
     NSRect frame = self.panel.frame;
-    frame.size = NSMakeSize(YTMMiniWidth, YTMMiniHeight);
+    frame.size = NSMakeSize(self.metrics.width, self.metrics.height);
 
     NSRect visible = screen.visibleFrame;
     BOOL intersectsAnyScreen = NO;
@@ -406,12 +678,14 @@ static const CGFloat YTMMiniHeight = 132;
     self.artistLabel.stringValue = hasTrack
         ? (state.subtitle.length > 0 ? state.subtitle : @"YouTube Music")
         : @"YouTube Music";
-    self.playButton.image = [self imageNamed:state.isPlaying ? @"pause.fill" : @"play.fill" size:19];
+    self.playButton.image = [self imageNamed:state.isPlaying ? @"pause.fill" : @"play.fill"
+                                      size:self.metrics.playSymbol];
     self.playButton.enabled = hasTrack;
     self.previousButton.enabled = hasTrack && state.canPrevious;
     self.nextButton.enabled = hasTrack && state.canNext;
     self.likeButton.enabled = hasTrack && state.canLike;
-    self.likeButton.image = [self imageNamed:state.isLiked ? @"hand.thumbsup.fill" : @"hand.thumbsup" size:13];
+    self.likeButton.image = [self imageNamed:state.isLiked ? @"hand.thumbsup.fill" : @"hand.thumbsup"
+                                      size:self.metrics.likeSymbol];
     self.progressView.progress = state.progress;
 
     if (hasTrack && state.duration > 0) {
