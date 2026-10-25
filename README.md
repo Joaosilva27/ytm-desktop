@@ -27,7 +27,9 @@ with native window behavior, media keys, and macOS integrations around it.
   menu, and quick access to the window, mini player, and settings.
 - **Mini player** — a floating always-on-top player with artwork, progress,
   and playback controls. Open it from the **Mini Player** button in the title
-  bar, the View menu, the menu bar, or with ⌘⇧M.
+  bar, the View menu, the menu bar, or with ⌘⇧M. Use the resize button in the
+  player to toggle between Tiny and your last larger size, or choose Regular,
+  Compact, or Tiny in **Settings → Mini Player**.
 - **Ad blocking** — a bundled content blocker removes known ad and tracking
   requests and hides promotional surfaces. A page script also strips ad
   metadata and fast-forwards in-player ads. Control it in
@@ -126,7 +128,7 @@ Build and run the snapshot harness used during development:
 
 The app also accepts hidden environment variables for local testing, including
 `YTM_START_URL`,
-`YTM_ACTION=mini|minibutton|settings|fullscreen|adblocktoggle|video`, `YTM_SNAPSHOT`,
+`YTM_ACTION=mini|minibutton|minisize|settings|fullscreen|adblocktoggle|video`, `YTM_SNAPSHOT`,
 `YTM_SNAPSHOT_MODE=window`, and `YTM_EPHEMERAL=1` (uses a non-persistent
 WebKit profile). These are not user-facing settings.
 

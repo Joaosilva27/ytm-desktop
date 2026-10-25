@@ -91,7 +91,7 @@
     [stack addArrangedSubview:sizeRow];
 
     NSTextField *miniPlayerHint = [NSTextField labelWithString:
-        @"The floating player keeps its bottom-right corner when resized."];
+        @"The resize button in the player toggles Tiny; the player keeps its bottom-right corner."];
     miniPlayerHint.font = [NSFont systemFontOfSize:11];
     miniPlayerHint.textColor = NSColor.secondaryLabelColor;
     miniPlayerHint.translatesAutoresizingMaskIntoConstraints = NO;

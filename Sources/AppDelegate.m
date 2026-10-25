@@ -553,6 +553,14 @@
             if (!self) { return; }
             if ([action isEqualToString:@"mini"]) {
                 [self showMiniPlayer:nil];
+            } else if ([action isEqualToString:@"minisize"]) {
+                [self showMiniPlayer:nil];
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+                               dispatch_get_main_queue(), ^{
+                    __strong typeof(weakSelf) self = weakSelf;
+                    if (!self) { return; }
+                    [self.miniPlayerController performSizeButtonClick];
+                });
             } else if ([action isEqualToString:@"minibutton"]) {
                 [self.mainWindowController performMiniPlayerButtonClick];
             } else if ([action isEqualToString:@"adblocktoggle"]) {

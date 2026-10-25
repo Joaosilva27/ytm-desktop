@@ -23,6 +23,7 @@ typedef struct {
     CGFloat closeTrailing;
     CGFloat closeSize;
     CGFloat closeSymbol;
+    CGFloat closeGap;
 
     CGFloat progressTop;
     CGFloat progressHeight;
@@ -180,6 +181,7 @@ typedef struct {
 @property (nonatomic, strong) NSButton *nextButton;
 @property (nonatomic, strong) NSButton *likeButton;
 @property (nonatomic, strong) NSButton *openButton;
+@property (nonatomic, strong) NSButton *sizeButton;
 @property (nonatomic, strong) NSButton *closeButton;
 @property (nonatomic, strong) NSArray<NSLayoutConstraint *> *layoutConstraints;
 @property (nonatomic, strong, nullable) PlaybackState *state;
@@ -187,8 +189,11 @@ typedef struct {
 @property (nonatomic, strong, nullable) NSURL *loadingArtworkURL;
 @property (nonatomic, assign) YTMMiniMetrics metrics;
 @property (nonatomic, assign) YTMMiniPlayerSize appliedSize;
+@property (nonatomic, assign) YTMMiniPlayerSize normalSizeBeforeTiny;
 
 - (YTMMiniMetrics)metricsForSize:(YTMMiniPlayerSize)size;
+- (void)sizePressed:(id)sender;
+- (void)updateSizeButton;
 - (void)applyMetricsAnimated:(BOOL)animated;
 - (void)resizePanelPreservingBottomRightAnimated:(BOOL)animated;
 - (void)ensureVisibleFrame;
@@ -205,6 +210,7 @@ typedef struct {
     YTMMiniMetrics metrics = [self metricsForSize:size];
     _appliedSize = size;
     _metrics = metrics;
+    _normalSizeBeforeTiny = (size == YTMMiniPlayerSizeTiny) ? YTMMiniPlayerSizeRegular : size;
 
     NSPanel *panel = [[YTMMiniPanel alloc] initWithContentRect:NSMakeRect(0, 0, metrics.width, metrics.height)
                                                      styleMask:(NSWindowStyleMaskBorderless |
@@ -267,6 +273,7 @@ typedef struct {
             .closeTrailing = 6,
             .closeSize = 15,
             .closeSymbol = 8.5,
+            .closeGap = 3,
             .progressTop = 5,
             .progressHeight = 3,
             .timeTop = 3,
@@ -305,6 +312,7 @@ typedef struct {
             .closeTrailing = 8,
             .closeSize = 18,
             .closeSymbol = 10,
+            .closeGap = 4,
             .progressTop = 6,
             .progressHeight = 3.5,
             .timeTop = 3,
@@ -342,6 +350,7 @@ typedef struct {
         .closeTrailing = 12,
         .closeSize = 20,
         .closeSymbol = 11,
+        .closeGap = 5,
         .progressTop = 8,
         .progressHeight = 4,
         .timeTop = 4,
@@ -413,6 +422,14 @@ typedef struct {
     [view addSubview:openButton];
     _openButton = openButton;
 
+    NSButton *sizeButton = [self buttonWithSymbol:@"arrow.down.right.and.arrow.up.left"
+                                             size:11
+                                           action:@selector(sizePressed:)
+                                          tooltip:@"Make the mini player smaller"];
+    sizeButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [view addSubview:sizeButton];
+    _sizeButton = sizeButton;
+
     NSButton *closeButton = [self buttonWithSymbol:@"xmark" size:11 action:@selector(closePressed:) tooltip:@"Hide Mini Player"];
     closeButton.translatesAutoresizingMaskIntoConstraints = NO;
     [view addSubview:closeButton];
@@ -445,6 +462,7 @@ typedef struct {
                                       size:metrics.likeSymbol];
     self.openButton.image = [self imageNamed:@"arrow.up.forward.square" size:metrics.openSymbol];
     self.closeButton.image = [self imageNamed:@"xmark" size:metrics.closeSymbol];
+    [self updateSizeButton];
 
     self.layoutConstraints = @[
         [self.coverView.leadingAnchor constraintEqualToAnchor:self.backgroundView.leadingAnchor
@@ -452,6 +470,13 @@ typedef struct {
         [self.coverView.centerYAnchor constraintEqualToAnchor:self.backgroundView.centerYAnchor],
         [self.coverView.widthAnchor constraintEqualToConstant:metrics.coverSize],
         [self.coverView.heightAnchor constraintEqualToConstant:metrics.coverSize],
+
+        [self.sizeButton.topAnchor constraintEqualToAnchor:self.backgroundView.topAnchor
+                                                  constant:metrics.closeTop],
+        [self.sizeButton.trailingAnchor constraintEqualToAnchor:self.closeButton.leadingAnchor
+                                                       constant:-metrics.closeGap],
+        [self.sizeButton.widthAnchor constraintEqualToConstant:metrics.closeSize],
+        [self.sizeButton.heightAnchor constraintEqualToConstant:metrics.closeSize],
 
         [self.closeButton.topAnchor constraintEqualToAnchor:self.backgroundView.topAnchor
                                                    constant:metrics.closeTop],
@@ -464,7 +489,7 @@ typedef struct {
                                                   constant:metrics.titleTop],
         [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.coverView.trailingAnchor
                                                       constant:metrics.coverTextGap],
-        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.closeButton.leadingAnchor
+        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.sizeButton.leadingAnchor
                                                        constant:-metrics.titleTrailingGap],
 
         [self.artistLabel.topAnchor constraintEqualToAnchor:self.titleLabel.bottomAnchor constant:2],
@@ -546,6 +571,9 @@ typedef struct {
 - (void)applyPreferredSize {
     YTMMiniPlayerSize size = [Preferences sharedPreferences].miniPlayerSize;
     YTMMiniMetrics metrics = [self metricsForSize:size];
+    if (size != YTMMiniPlayerSizeTiny) {
+        self.normalSizeBeforeTiny = size;
+    }
     if (size == self.appliedSize &&
         metrics.width == self.metrics.width &&
         metrics.height == self.metrics.height) {
@@ -767,6 +795,40 @@ typedef struct {
 
 - (void)openPressed:(id)sender {
     if (self.openWindowHandler) { self.openWindowHandler(); }
+}
+
+- (void)sizePressed:(id)sender {
+    YTMMiniPlayerSize current = [Preferences sharedPreferences].miniPlayerSize;
+    YTMMiniPlayerSize next;
+    if (current == YTMMiniPlayerSizeTiny) {
+        next = self.normalSizeBeforeTiny;
+    } else {
+        self.normalSizeBeforeTiny = current;
+        next = YTMMiniPlayerSizeTiny;
+    }
+    [Preferences sharedPreferences].miniPlayerSize = next;
+    [self applyPreferredSize];
+}
+
+- (void)updateSizeButton {
+    BOOL tiny = self.appliedSize == YTMMiniPlayerSizeTiny;
+    NSString *symbol = tiny ? @"arrow.up.left.and.arrow.down.right"
+                            : @"arrow.down.right.and.arrow.up.left";
+    NSString *tooltip = tiny ? @"Make the mini player bigger"
+                             : @"Make the mini player smaller";
+
+    NSImage *image = [NSImage imageWithSystemSymbolName:symbol
+                               accessibilityDescription:tooltip];
+    NSImageSymbolConfiguration *configuration =
+        [NSImageSymbolConfiguration configurationWithPointSize:MAX(10.0, self.metrics.closeSymbol)
+                                                        weight:NSFontWeightMedium];
+    image = [image imageWithSymbolConfiguration:configuration] ?: image;
+    self.sizeButton.image = image;
+    self.sizeButton.toolTip = tooltip;
+}
+
+- (void)performSizeButtonClick {
+    [self.sizeButton performClick:nil];
 }
 
 - (void)closePressed:(id)sender {
