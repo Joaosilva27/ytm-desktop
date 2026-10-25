@@ -28,10 +28,14 @@ with native window behavior, media keys, and macOS integrations around it.
 - **Mini player** — a floating always-on-top player with artwork, progress,
   and playback controls. Open it from the **Mini Player** button in the title
   bar, the View menu, the menu bar, or with ⌘⇧M.
+- **Ad blocking** — a bundled content blocker removes known ad and tracking
+  requests and hides promotional surfaces. A page script also strips ad
+  metadata and fast-forwards in-player ads. Control it in
+  **Settings → Privacy**.
 - **Dock menu** — playback controls plus quick access to the window and mini
   player, without bringing the window forward.
 - **Native settings** — start page, menu bar player, keep-playing-on-close,
-  always-on-top, external links, and launch at login.
+  always-on-top, ad blocking, external links, and launch at login.
 - **Resilient** — loading and offline states, retry, and automatic reload if
   the WebKit content process is terminated.
 
@@ -91,6 +95,11 @@ them. Authentication redirects never leave the app for a browser.
   windowed mode and edge-to-edge in full screen.
 - `Sources/StatusItemController.m` and `Sources/MiniPlayerController.m` provide
   the other native surfaces.
+- `Sources/AdBlocker.m` compiles the bundled WebKit content-rule list and
+  attaches it to the web view. `Resources/AdBlockRules.json` blocks known ad
+  hosts and YouTube ad endpoints and hides promotional UI.
+- `Resources/AdBlocker.js` prunes ad fields from player responses and
+  fast-forwards any in-player ads that still appear.
 - `Sources/LoginItemManager.m` manages a LaunchAgent in
   `~/Library/LaunchAgents` for launch at login.
 
@@ -106,7 +115,8 @@ Build and run the snapshot harness used during development:
 ```
 
 The app also accepts hidden environment variables for local testing, including
-`YTM_START_URL`, `YTM_ACTION=mini|minibutton|settings|fullscreen`, `YTM_SNAPSHOT`,
+`YTM_START_URL`,
+`YTM_ACTION=mini|minibutton|settings|fullscreen|adblocktoggle`, `YTM_SNAPSHOT`,
 `YTM_SNAPSHOT_MODE=window`, and `YTM_EPHEMERAL=1` (uses a non-persistent
 WebKit profile). These are not user-facing settings.
 
@@ -127,6 +137,9 @@ Re-generate the app icon after editing `Tools/IconGen.m`:
   app.
 - Some Google pages may ask you to verify the browser during sign-in. Complete
   the challenge in the app window.
+- Ad blocking is best-effort: YouTube changes its ad delivery and player
+  internals regularly. If playback misbehaves, turn off **Block ads and
+  sponsored content** in Settings.
 
 ## License
 

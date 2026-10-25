@@ -19,6 +19,7 @@ typedef NS_ENUM(NSInteger, YTMMiniPlayerSize) {
 @property (nonatomic, assign) BOOL openExternalLinksInBrowser;
 @property (nonatomic, assign) BOOL alwaysOnTop;
 @property (nonatomic, assign) YTMMiniPlayerSize miniPlayerSize;
+@property (nonatomic, assign) BOOL blockAds;
 @property (nonatomic, copy) NSString *startPage;
 
 @end

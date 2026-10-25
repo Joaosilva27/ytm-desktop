@@ -52,6 +52,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setLiked:(BOOL)liked;
 - (void)focusSearch;
 
+/// Reconfigures the content-rule list and injected ad script, then reloads.
+- (void)setAdBlockingEnabled:(BOOL)enabled;
+
 /// Forwards a command coming from the menu bar, Dock, mini player or media keys.
 - (void)performCommand:(NSString *)command value:(nullable id)value;
 

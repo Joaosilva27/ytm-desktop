@@ -1,0 +1,112 @@
+[
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*doubleclick\\.net/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*googlesyndication\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*googleadservices\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*adservice\\.google\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*2mdn\\.net/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*moatads\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*adsafeprotected\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*innovid\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*serving-sys\\.com/",
+      "if-domain": ["*youtube.com", "youtube.com"],
+      "load-type": ["third-party"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*youtube\\.com/pagead/",
+      "if-domain": ["*youtube.com", "youtube.com"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*youtube\\.com/ptracking",
+      "if-domain": ["*youtube.com", "youtube.com"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*youtube\\.com/api/stats/ad",
+      "if-domain": ["*youtube.com", "youtube.com"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([^/]+\\.)*youtube\\.com/get_midroll_info",
+      "if-domain": ["*youtube.com", "youtube.com"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": ".*",
+      "if-domain": ["*youtube.com", "youtube.com"]
+    },
+    "action": {
+      "type": "css-display-none",
+      "selector": "ytmusic-mealbar-promo-renderer, ytmusic-statement-banner-renderer, ytmusic-promoted-sparkles-web-renderer, ytd-ad-slot-renderer, ytd-display-ad-renderer, ytd-promoted-sparkles-web-renderer, ytd-promoted-video-renderer, #masthead-ad, #player-ads, ytmusic-player-bar .badge-style-type-ad-stark, .ytp-ad-overlay-container, .ytp-ad-image-overlay, .ytp-ad-player-overlay, .ytp-ad-text, .ytp-ad-progress-list"
+    }
+  }
+]

@@ -8,6 +8,7 @@
 @property (nonatomic, strong) NSButton *menuBarCheckbox;
 @property (nonatomic, strong) NSButton *keepPlayingCheckbox;
 @property (nonatomic, strong) NSButton *alwaysOnTopCheckbox;
+@property (nonatomic, strong) NSButton *blockAdsCheckbox;
 @property (nonatomic, strong) NSButton *externalLinksCheckbox;
 @property (nonatomic, strong) NSButton *loginCheckbox;
 @property (nonatomic, strong) NSTextField *startPageField;
@@ -96,6 +97,15 @@
     miniPlayerHint.translatesAutoresizingMaskIntoConstraints = NO;
     [stack addArrangedSubview:miniPlayerHint];
     [stack setCustomSpacing:22 afterView:miniPlayerHint];
+
+    [stack addArrangedSubview:[self sectionLabel:@"Privacy"]];
+    [stack setCustomSpacing:10 afterView:stack.arrangedSubviews.lastObject];
+
+    self.blockAdsCheckbox = [self checkboxWithTitle:@"Block ads and sponsored content"
+                                            action:@selector(blockAdsChanged:)];
+    self.blockAdsCheckbox.toolTip = @"Uses a bundled content filter and skips in-player ads. Changing this reloads YouTube Music.";
+    [stack addArrangedSubview:self.blockAdsCheckbox];
+    [stack setCustomSpacing:22 afterView:self.blockAdsCheckbox];
 
     [stack addArrangedSubview:[self sectionLabel:@"Links"]];
     [stack setCustomSpacing:10 afterView:stack.arrangedSubviews.lastObject];
@@ -215,6 +225,7 @@
     self.menuBarCheckbox.state = preferences.showMenuBarPlayer ? NSControlStateValueOn : NSControlStateValueOff;
     self.keepPlayingCheckbox.state = preferences.keepPlayingOnClose ? NSControlStateValueOn : NSControlStateValueOff;
     self.alwaysOnTopCheckbox.state = preferences.alwaysOnTop ? NSControlStateValueOn : NSControlStateValueOff;
+    self.blockAdsCheckbox.state = preferences.blockAds ? NSControlStateValueOn : NSControlStateValueOff;
     self.externalLinksCheckbox.state = preferences.openExternalLinksInBrowser ? NSControlStateValueOn : NSControlStateValueOff;
     self.loginCheckbox.state = [LoginItemManager isEnabled] ? NSControlStateValueOn : NSControlStateValueOff;
     self.startPageField.stringValue = preferences.startPage;
@@ -236,6 +247,10 @@
 
 - (void)alwaysOnTopChanged:(NSButton *)sender {
     [Preferences sharedPreferences].alwaysOnTop = sender.state == NSControlStateValueOn;
+}
+
+- (void)blockAdsChanged:(NSButton *)sender {
+    [Preferences sharedPreferences].blockAds = sender.state == NSControlStateValueOn;
 }
 
 - (void)externalLinksChanged:(NSButton *)sender {
@@ -313,6 +328,7 @@
     preferences.openExternalLinksInBrowser = YES;
     preferences.alwaysOnTop = NO;
     preferences.miniPlayerSize = YTMMiniPlayerSizeRegular;
+    preferences.blockAds = YES;
     preferences.startPage = @"https://music.youtube.com/";
     [self syncControls];
 }

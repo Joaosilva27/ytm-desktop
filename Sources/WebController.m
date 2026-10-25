@@ -1,5 +1,6 @@
 #import "WebController.h"
 
+#import "AdBlocker.h"
 #import "Preferences.h"
 
 static NSString * const YTMScriptHandlerName = @"ytm";
@@ -10,6 +11,9 @@ static NSString * const YTMSafariUserAgent =
 @interface WebController () <WKNavigationDelegate, WKUIDelegate>
 
 @property (nonatomic, strong, readwrite) WKWebView *webView;
+@property (nonatomic, strong) WKUserContentController *contentController;
+@property (nonatomic, strong, nullable) WKUserScript *playerBridgeScript;
+@property (nonatomic, strong) AdBlocker *adBlocker;
 @property (nonatomic, strong, nullable) PlaybackState *state;
 @property (nonatomic, assign) BOOL loading;
 @property (nonatomic, assign) NSInteger consentAutomationAttempts;
@@ -55,19 +59,26 @@ static NSString * const YTMSafariUserAgent =
         configuration.defaultWebpagePreferences.allowsContentJavaScript = YES;
     }
 
+    WKUserContentController *contentController = [[WKUserContentController alloc] init];
+    configuration.userContentController = contentController;
+    self.contentController = contentController;
+
     YTMScriptMessageProxy *proxy = [[YTMScriptMessageProxy alloc] init];
     proxy.controller = self;
-    [configuration.userContentController addScriptMessageHandler:proxy name:YTMScriptHandlerName];
+    [contentController addScriptMessageHandler:proxy name:YTMScriptHandlerName];
 
     NSString *bridgeScript = [self resourceNamed:@"PlayerBridge" extension:@"js"];
     if (bridgeScript.length > 0) {
-        WKUserScript *script = [[WKUserScript alloc] initWithSource:bridgeScript
-                                                      injectionTime:WKUserScriptInjectionTimeAtDocumentEnd
-                                                   forMainFrameOnly:YES];
-        [configuration.userContentController addUserScript:script];
+        self.playerBridgeScript = [[WKUserScript alloc] initWithSource:bridgeScript
+                                                          injectionTime:WKUserScriptInjectionTimeAtDocumentEnd
+                                                       forMainFrameOnly:YES];
     } else {
         NSLog(@"[YTM] PlayerBridge.js is missing from the app bundle; playback controls will be unavailable.");
     }
+
+    self.adBlocker = [[AdBlocker alloc] initWithUserContentController:contentController
+                                                               enabled:[Preferences sharedPreferences].blockAds];
+    [self updateUserScripts];
 
     _webView = [[WKWebView alloc] initWithFrame:NSZeroRect configuration:configuration];
     _webView.navigationDelegate = self;
@@ -92,7 +103,7 @@ static NSString * const YTMSafariUserAgent =
         [_webView removeObserver:self forKeyPath:@"title"];
     } @catch (__unused NSException *exception) {
     }
-    [_webView.configuration.userContentController removeScriptMessageHandlerForName:YTMScriptHandlerName];
+    [self.contentController removeScriptMessageHandlerForName:YTMScriptHandlerName];
 }
 
 #pragma mark - Resources
@@ -131,14 +142,51 @@ static NSString * const YTMSafariUserAgent =
 
 - (void)loadURL:(NSURL *)url {
     if (!url) { return; }
-    [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
+    __weak typeof(self) weakSelf = self;
+    [self.adBlocker prepareWithCompletion:^(BOOL ready) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
+    }];
 }
 
 - (void)reload {
-    if (self.webView.URL) {
-        [self.webView reload];
-    } else {
-        [self loadStartPage];
+    __weak typeof(self) weakSelf = self;
+    [self.adBlocker prepareWithCompletion:^(BOOL ready) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        if (self.webView.URL) {
+            [self.webView reload];
+        } else {
+            [self loadStartPage];
+        }
+    }];
+}
+
+#pragma mark - Ad blocking
+
+- (void)setAdBlockingEnabled:(BOOL)enabled {
+    if (self.adBlocker.isEnabled == enabled) { return; }
+
+    __weak typeof(self) weakSelf = self;
+    [self.adBlocker setEnabled:enabled completion:^(BOOL success) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        [self updateUserScripts];
+        [self reload];
+    }];
+}
+
+- (void)updateUserScripts {
+    [self.contentController removeAllUserScripts];
+    if (self.playerBridgeScript) {
+        [self.contentController addUserScript:self.playerBridgeScript];
+    }
+    if (self.adBlocker.isEnabled) {
+        WKUserScript *script = self.adBlocker.userScript;
+        if (script) {
+            [self.contentController addUserScript:script];
+        }
     }
 }
 
@@ -228,6 +276,10 @@ static NSString * const YTMSafariUserAgent =
 
     NSDictionary *body = (NSDictionary *)message.body;
     NSString *type = body[@"type"];
+    if (![type isEqualToString:@"state"] && ![type isEqualToString:@"ready"] &&
+        [NSProcessInfo.processInfo.environment[@"YTM_VERBOSE"] boolValue]) {
+        NSLog(@"[YTM] Script message: %@", body);
+    }
     if ([type isEqualToString:@"ready"]) {
         [self.delegate webControllerDidBecomeReady:self];
         return;

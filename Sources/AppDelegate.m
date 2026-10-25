@@ -113,6 +113,7 @@
     [self.statusItemController setVisible:preferences.showMenuBarPlayer];
     [self.mainWindowController applyAlwaysOnTop:preferences.alwaysOnTop];
     [self.miniPlayerController applyPreferredSize];
+    [self.webController setAdBlockingEnabled:preferences.blockAds];
     [self.statusItemController updateWithState:self.webController.state];
 }
 
@@ -534,6 +535,9 @@
                 [self showMiniPlayer:nil];
             } else if ([action isEqualToString:@"minibutton"]) {
                 [self.mainWindowController performMiniPlayerButtonClick];
+            } else if ([action isEqualToString:@"adblocktoggle"]) {
+                Preferences *preferences = [Preferences sharedPreferences];
+                preferences.blockAds = !preferences.blockAds;
             } else if ([action isEqualToString:@"settings"]) {
                 [self showSettings:nil];
             } else if ([action isEqualToString:@"fullscreen"]) {
