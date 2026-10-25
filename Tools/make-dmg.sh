@@ -30,7 +30,7 @@ VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/
 OUT="${1:-$ROOT/dist/YouTube-Music-$VERSION.dmg}"
 TMP_IMAGE="$ROOT/build/YouTubeMusic-rw.dmg"
 
-echo "Packaging YouTube Music $VERSION…"
+echo "Packaging YouTube Music ${VERSION}..."
 
 rm -rf "$STAGE" "$TMP_IMAGE" "$OUT"
 mkdir -p "$ROOT/build" "$STAGE" "$(dirname "$OUT")"
@@ -50,7 +50,9 @@ apply_layout() {
   local mount="$1"
   xcrun SetFile -a V "$mount/.background" >/dev/null 2>&1 || true
   [[ -f "$BACKGROUND" ]] || return 0
-  osascript >/dev/null 2>&1 <<EOF || echo "warning: Finder layout was not applied (image is still usable)" >&2
+  # perl gives osascript a deadline: a session without Automation permission can
+  # otherwise sit on the request instead of failing.
+  perl -e 'alarm shift; exec @ARGV' 60 osascript >/dev/null 2>&1 <<EOF || echo "warning: Finder layout was not applied (image is still usable)" >&2
 tell application "Finder"
   tell disk "$VOL_NAME"
     open
