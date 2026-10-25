@@ -156,18 +156,17 @@ checksum, with the app, an Applications shortcut, and a Finder window layout.
 
 ## Cutting a release
 
-Releases are built on GitHub's macOS runners — no Mac needed. Push a tag:
+Releases are built on GitHub's macOS runners — no Mac needed. Bump
+`CFBundleShortVersionString` in `Resources/Info.plist`, commit, and merge to
+`main`: [`.github/workflows/release.yml`](.github/workflows/release.yml) builds
+a universal app, packages the disk image, and publishes the release page for
+`v<version>` using [`.github/release-notes.md`](.github/release-notes.md) as the
+body, with the changelog taken from the commits since the previous tag. A
+version that already has a tag is skipped, so ordinary pushes to `main` do not
+republish.
 
-```sh
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-[`.github/workflows/release.yml`](.github/workflows/release.yml) then builds a
-universal app, packages the disk image, and publishes a release page using
-[`.github/release-notes.md`](.github/release-notes.md) as the body, with the
-changelog taken from the commits since the previous tag. The workflow can also
-be started by hand from the Actions tab with a version number.
+Pushing a tag (`git tag v1.1.0 && git push origin v1.1.0`) or starting the
+workflow by hand from the Actions tab publishes immediately.
 
 ## How it works
 

@@ -3,12 +3,17 @@ name: Release
 # Builds a universal macOS app, packages it as a drag-to-install disk image and
 # publishes it on the releases page.
 #
-#   git tag v1.0.0 && git push origin v1.0.0
+# It runs on every push to main and publishes once per version: the version
+# comes from CFBundleShortVersionString in Resources/Info.plist, and a version
+# that already has a tag is skipped, so ordinary pushes cost a few seconds.
+# Bump the version in Info.plist to cut a new release.
 #
-# or run this workflow from the Actions tab and type a version.
+# Pushing a tag (git tag v1.1.0 && git push origin v1.1.0) or running this
+# workflow by hand from the Actions tab always publishes.
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -26,7 +31,7 @@ concurrency:
 jobs:
   release:
     name: Build and publish
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       INPUT_VERSION: ${{ inputs.version }}
     steps:
@@ -35,22 +40,43 @@ jobs:
           fetch-depth: 0
 
       - name: Work out the version
+        id: version
         run: |
-          if [[ -n "$INPUT_VERSION" ]]; then
-            VERSION="${INPUT_VERSION#v}"
-            TAG="v$VERSION"
-          else
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             TAG="$GITHUB_REF_NAME"
             VERSION="${TAG#v}"
+            PUBLISH=true
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="${INPUT_VERSION#v}"
+            TAG="v$VERSION"
+            PUBLISH=true
+          else
+            VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)"
+            TAG="v$VERSION"
+            if git rev-parse --quiet --verify "refs/tags/$TAG" >/dev/null; then
+              PUBLISH=false
+            else
+              PUBLISH=true
+            fi
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Building YouTube Music $VERSION ($TAG)"
+          echo "PUBLISH=$PUBLISH" >> "$GITHUB_ENV"
+          echo "Release $TAG — publish: $PUBLISH"
 
+      - name: Already released
+        if: env.PUBLISH != 'true'
+        run: echo "$TAG already exists; nothing to publish."
+
+      # Releases are ad-hoc signed and not notarized, so Gatekeeper asks for
+      # confirmation on first launch. That is expected, not a build failure.
       - name: Build universal app
+        if: env.PUBLISH == 'true'
         run: UNIVERSAL=1 VERSION="$VERSION" ./Tools/build.sh
 
       - name: Check the bundle
+        if: env.PUBLISH == 'true'
         run: |
           set -euo pipefail
           APP="dist/YouTube Music.app"
@@ -62,9 +88,11 @@ jobs:
           codesign --verify --deep --strict "$APP"
 
       - name: Package disk image
+        if: env.PUBLISH == 'true'
         run: ./Tools/make-dmg.sh
 
       - name: Write release notes
+        if: env.PUBLISH == 'true'
         run: |
           set -euo pipefail
           mkdir -p build
@@ -101,6 +129,7 @@ jobs:
           PY
 
       - uses: actions/upload-artifact@v4
+        if: env.PUBLISH == 'true'
         with:
           name: YouTube-Music-DMG
           path: |
@@ -108,6 +137,7 @@ jobs:
             dist/*.sha256
 
       - uses: softprops/action-gh-release@v2
+        if: env.PUBLISH == 'true'
         with:
           tag_name: ${{ env.TAG }}
           name: YouTube Music ${{ env.VERSION }}
